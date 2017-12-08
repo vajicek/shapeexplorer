@@ -1,26 +1,33 @@
 
 import vtk
 
+
 def mkVtkIdList(it):
     vil = vtk.vtkIdList()
     for i in it:
         vil.InsertNextId(int(i))
     return vil
 
+
 class Viewer(object):
-    DEFAULT_SIZE=(300, 300)
-    DEFAULT_CAMERA_POS=(1, 1, 1)
-    DEFAULT_CAMERA_FP=(0, 0, 0)
+    DEFAULT_SIZE = (300, 300)
+    DEFAULT_CAMERA_POS = (1, 1, 1)
+    DEFAULT_CAMERA_FP = (0, 0, 0)
 
     def init_gui_element(self, data):
         dataMapper = vtk.vtkPolyDataMapper()
-        if vtk.VTK_MAJOR_VERSION <= 5:
-            dataMapper.SetInput(data)
-        else:
-            dataMapper.SetInputData(data)
-        dataMapper.SetScalarRange(0,7)
+        if isinstance(data, vtk.vtkPolyDataAlgorithm):
+            dataMapper.SetInputConnection(data.GetOutputPort())
+        elif isinstance(data, vtk.vtkPolyData):
+            if vtk.VTK_MAJOR_VERSION <= 5:
+                dataMapper.SetInput(data)
+            else:
+                dataMapper.SetInputData(data)
+            dataMapper.SetScalarRange(0, 7)
+
         dataActor = vtk.vtkActor()
         dataActor.SetMapper(dataMapper)
+        dataActor.GetProperty().SetPointSize(12)
         return dataActor
 
     def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP):
@@ -32,10 +39,14 @@ class Viewer(object):
 
     def init_window(self, data):
         renderer = vtk.vtkRenderer()
-        renderer.AddActor(self.init_gui_element(data))
-        renderer.SetBackground(1,1,1)
+        for data_element in data:
+            actor = self.init_gui_element(data_element["dat"])
+            actor.GetProperty().SetColor(*data_element["col"]);
+            renderer.AddActor(actor)
+        renderer.SetBackground(1, 1, 1)
 
         self.renWin = vtk.vtkRenderWindow()
+        self.renWin.SetAAFrames(8)
         self.renWin.AddRenderer(renderer)
         self.renWin.SetSize(*self.size)
 
@@ -61,7 +72,7 @@ class Viewer(object):
         pngWriter.Write()
 
     def render(self):
-        if self.filename!=None:
+        if self.filename != None:
             self.to_file(self.filename)
         else:
             self.run_window()
