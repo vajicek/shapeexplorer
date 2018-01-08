@@ -1,18 +1,18 @@
-
+""" Viewer toll with off-screen rendering. """
 import vtk
 
 
-def mkVtkIdList(it):
-    vil = vtk.vtkIdList()
-    for i in it:
-        vil.InsertNextId(int(i))
-    return vil
-
-
 class Viewer(object):
+    """Viewer class, render off-screen or to window"""
+    
     DEFAULT_SIZE = (300, 300)
     DEFAULT_CAMERA_POS = (1, 1, 1)
     DEFAULT_CAMERA_FP = (0, 0, 0)
+
+    def __init__(self, data, filename=None, size=DEFAULT_SIZE):
+        self.filename = filename
+        self.size = size
+        self.init_window(data)
 
     def init_gui_element(self, data):
         dataMapper = vtk.vtkPolyDataMapper()
@@ -46,7 +46,8 @@ class Viewer(object):
         renderer.SetBackground(1, 1, 1)
 
         self.renWin = vtk.vtkRenderWindow()
-        self.renWin.SetAAFrames(8)
+        if self.filename != None:
+            self.renWin.SetAAFrames(8)
         self.renWin.AddRenderer(renderer)
         self.renWin.SetSize(*self.size)
 
@@ -76,8 +77,3 @@ class Viewer(object):
             self.to_file(self.filename)
         else:
             self.run_window()
-
-    def __init__(self, data, filename=None, size=DEFAULT_SIZE):
-        self.filename = filename
-        self.size = size
-        self.init_window(data)

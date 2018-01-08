@@ -1,6 +1,15 @@
-import vtk
-import viewer
+""" Sample data for viewer. """
+
+import logging
 import subdivcurve
+import vtk
+
+
+def _make_vtk_id_list(it):
+    vil = vtk.vtkIdList()
+    for i in it:
+        vil.InsertNextId(int(i))
+    return vil
 
 
 def cube_data():
@@ -23,7 +32,7 @@ def cube_data():
     for i in range(8):
         points.InsertPoint(i, x[i])
     for i in range(6):
-        polys.InsertNextCell(viewer.mkVtkIdList(pts[i]))
+        polys.InsertNextCell(_make_vtk_id_list(pts[i]))
     for i in range(8):
         scalars.InsertTuple1(i, i)
 
@@ -67,6 +76,13 @@ def load_polyline_data(polyline_data_file):
         for line in f:
             tokens = line.split(" ")
             vector = [float(a) for a in tokens[1:4]]
+
+            if len(polyline_data) > 0:
+                dist_a_b = subdivcurve.dist(polyline_data[-1], vector)
+                if dist_a_b < 1e-9:
+                    logging.debug("subsequent points are two close: " + str(polyline_data[-1]) + " - " + str(vector))
+                    continue
+            
             polyline_data.append(vector)
     return polyline_data
 
@@ -90,19 +106,25 @@ def load_sl(curve_file, sl_count):
     return polydata
 
 
-def load_sl_balls(curve_file, sl_count, radius):
-    polyline_data = load_polyline_data(curve_file)
-    sls = subdivcurve.subdivide_curve(polyline_data, sl_count)
+def create_balls(points, radius, color=(1, 0, 0)):
     balls = []
-    for i, sl in enumerate(sls):
+    for sl in points:
         ball = vtk.vtkSphereSource()
         ball.SetCenter(*sl)
         ball.SetRadius(radius)
-        balls.append(dict(dat=ball, col=(1, 0, 0)))
+        balls.append(dict(dat=ball, col=color))
     return balls
 
+
+def load_sl_balls(curve_file, sl_count, radius, color=(1, 0, 0)):
+    points = load_polyline_data(curve_file)
+    if sl_count:
+        points = subdivcurve.subdivide_curve(points, sl_count)
+    return create_balls(points, radius, color)
+
+
 def load_curve(curve_file, subdivide_to=None):
-    polyline_data=load_polyline_data(curve_file)
+    polyline_data = load_polyline_data(curve_file)
     if subdivide_to:
         return curve(subdivcurve.subdivide_curve(polyline_data, subdivide_to))
     else:

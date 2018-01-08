@@ -1,17 +1,22 @@
+""" Subdivide algorithm for polylines. """
+
 import math
 
 EPSILON = 1e-6
 
 
 def dist(p1, p2):
+    """ Euclidean distance between points. """
     return math.sqrt(sum([(a - b) * (a - b) for a, b in zip(p1, p2)]))
 
 
 def interpolate(p1, p2, t):
+    """ Interpolate between p1 and p2 points. """
     return [(1 - t) * a + t * b for (a, b) in zip(p1, p2)]
 
 
 def curve_length(polyline_data):
+    """ Measure length of polyline (sum lengths of individual segments). """
     length = 0
     for i in range(len(polyline_data) - 1):
         length = length + dist(polyline_data[i], polyline_data[i + 1])
@@ -19,6 +24,7 @@ def curve_length(polyline_data):
 
 
 def subdivide_curve(polyline_data, count):
+    """ Subdivide polyline data into 'count' points with equidistant segments. """
     length = curve_length(polyline_data)
     segment_length = length / (count - 1)
     new_polyline_data = []
@@ -31,8 +37,7 @@ def subdivide_curve(polyline_data, count):
             continue
 
         while length < i * segment_length:
-            length = length + \
-                dist(polyline_data[polyline_data_index],
+            length = length + dist(polyline_data[polyline_data_index],
                      polyline_data[polyline_data_index + 1])
             polyline_data_index = polyline_data_index + 1
 
@@ -45,7 +50,8 @@ def subdivide_curve(polyline_data, count):
         a = polyline_data[polyline_data_index]
         b = polyline_data[polyline_data_index + 1]
         diff = length - i * segment_length
-        t = diff / dist(a, b)
+        dist_a_b = dist(a, b)
+        t = diff / dist_a_b
         new_polyline_data.append(interpolate(a, b, t))
 
     return new_polyline_data
