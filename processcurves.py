@@ -2,18 +2,20 @@
 
 """ Process curves. """
 
-import csv
 import logging
 import glob
-import itertools
 import os
 import sampledata
 import subdivcurve
-import subprocess
+import rscriptsupport
+import viewer
 
+# analysis parameters
+SEMILANDMARKS = 30
 DATAFOLDER = "/home/vajicek/Dropbox/TIBIA/CURVATURE/Tibie CURVES"
 SUBDIRS = ["A_eneolit", "B_bronz", "C_latén", "D_raný středověk", "E_vrcholný středověk", "F_pachner", "G_angio"]
-OUTPUTFOLDER = "output"
+
+
 
 def load_all_curves():
     curves = {}
@@ -22,39 +24,48 @@ def load_all_curves():
         curves[subdir] = []
         for curve_file in glob.glob(subdir_abs + '/*.asc'):
             logging.info(curve_file)
-            curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), 30)
+            curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), SEMILANDMARKS)
             curves[subdir].append(curve)
     return curves         
 
 
-def call_r(script):
-    cmd = ['Rscript', script]
-    
-    process = subprocess.Popen(' '.join(cmd), shell=True,
-                           stdout=subprocess.PIPE)
-    for line in process.stdout:
-        print(line.decode('utf-8'), end='')
-
-
-def store_for_r(curves):
-    for category, curve_list in curves.items():
-        logging.info("processing category: " + category)
-        with open(os.path.join(OUTPUTFOLDER, category + '.csv'), 'w') as csvfile:
-            spamwriter = csv.writer(csvfile, delimiter=';',
-                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            for curve in curve_list:
-                curve_line = list(itertools.chain.from_iterable(curve))
-                spamwriter.writerow([str(num) for num in curve_line])    
-
-
 def analyze_curves():
-    call_r('processcurves.R')
+    rscriptsupport.call_r('processcurves.R')
 
+
+def show_curves(data, filename=None, radius=0.001, res=(1024, 1024)):
+    vdata = []
+    for unused_key, group in data.items():
+        for curve in group:
+            sls = sampledata.create_balls(curve, radius, color=(1, 0, 0))
+            vdata = vdata + sls
+    v = viewer.Viewer(vdata, size=res)
+    v.filename = filename
+    v.render()
+
+
+def visualize_all():
+    data = rscriptsupport.load_from_r("output/all_gpa.csv")
+    groups = rscriptsupport.load_csv("output/all_group.csv")
+    for i in range(len(data[""])):
+        tmpdata = {"": data[""][0:(i + 1)]}
+        show_curves(tmpdata, "output/filename%04d_%s.png" % (i, groups[i][0]))
+
+def visualize_means():
+    means = rscriptsupport.load_from_r("output/mean.csv")
+    groups = rscriptsupport.load_csv("output/mean_group.csv")
+    data = {}
+    for i in range(len(means[""])):
+        data[groups[i][0]] = means[""][0:(i + 1)]
+    show_curves(data)
 
 def process_curves():
-    curves = load_all_curves()
-    store_for_r(curves)
+    if rscriptsupport.curve_files_uptodate():
+        curves = load_all_curves()
+        rscriptsupport.store_for_r(curves)
     analyze_curves()
+    #visualize_all()
+    visualize_means()
     
 
 if __name__ == "__main__":

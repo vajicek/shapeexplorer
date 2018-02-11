@@ -25,8 +25,8 @@ def curve_length(polyline_data):
 
 def subdivide_curve(polyline_data, count):
     """ Subdivide polyline data into 'count' points with equidistant segments. """
-    length = curve_length(polyline_data)
-    segment_length = length / (count - 1)
+    curvelength = curve_length(polyline_data)
+    segment_length = curvelength / (count - 1)
     new_polyline_data = []
     length = 0
     polyline_data_index = 0
@@ -36,7 +36,8 @@ def subdivide_curve(polyline_data, count):
             new_polyline_data.append(polyline_data[polyline_data_index])
             continue
 
-        while length < i * segment_length:
+        # compensate for error in incremental addition
+        while length < (i * segment_length - EPSILON):
             length = length + dist(polyline_data[polyline_data_index],
                      polyline_data[polyline_data_index + 1])
             polyline_data_index = polyline_data_index + 1
