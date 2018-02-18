@@ -164,8 +164,13 @@ mean_curves <- function(sample_gpa, sample_groups) {
 		group_mean <- colMeans(group_data)
 		means[i,] = group_mean
 	}
-	write.table(means, file.path("output", "mean.csv"), row.names=FALSE, col.names=FALSE, sep=";")
-	write.table(unique_groups, file.path("output", "mean_group.csv"), row.names=FALSE, col.names=FALSE, sep=";")
+	
+	return(list(means=means, names=unique_groups))
+}
+
+store_named_curves <- function(curves, names, prefix) {
+	write.table(curves, file.path("output", paste(prefix, ".csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
+	write.table(names, file.path("output", paste(prefix, "_group.csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
 }
 
 process_curves <- function(sample) {
@@ -177,11 +182,57 @@ process_curves <- function(sample) {
 	store_gpa(sample_gpa, sample)
 	
 	#
-	mean_curves(sample_gpa, sample_groups)
+	means <- mean_curves(sample_gpa, sample_groups)
+	store_named_curves(means$means, means$names)
 	
 	#
 	#statistics(sample, sample_gpa, sample_groups)
 }
 
-process_curves("all")
+#process_curves("all")
+
+curves_variance <- function(curves) {
+	curves_dim <- dim(curves)
+	sl_count <- curves_dim[1] / 3
+	curves_count <- curves_dim[1]
+	mean_curve <- colMeans(curves)
+	err_sum <- 0
+	for (c in 1:curves_count) {
+		shifted_curve <- curves[c,] - mean_curve
+		err <- sum(shifted_curve^2)
+		err_sum <- err_sum + err
+	}
+	return(err_sum)
+}
+
+curves_group_variances <- function(curves, groups) {
+	unique_groups <- as.character(unique(groups$V1))
+	groups_count <- length(unique_groups)
+	group_variances <- rep(0, groups_count)
+	for (c in 1:groups_count) {
+		group_curves <-	curves[groups == unique_groups[c],]
+		group_variances[c] <- curves_variance(group_curves)
+	}
+	return(mean(group_variances))
+}
+
+io_error_analysis <- function() {
+	io_error_sample_data <- load_curves("io_error")
+	io_error_sample_groups <- load_groups("io_error")
+	
+	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data)$coords)
+	
+	io_error_means_variance <- curves_group_variances(io_error_sample_gpa, io_error_sample_groups)
+	io_error_variance <- curves_variance(io_error_sample_gpa)
+	
+	result <- list(io_error_means_variance=io_error_means_variance,
+			io_error_variance=io_error_variance,
+			ration=io_error_means_variance / io_error_variance)
+	print(result)
+}
+
+
+io_error_analysis()
+
+
 

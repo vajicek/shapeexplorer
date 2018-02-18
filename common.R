@@ -10,5 +10,5 @@ use_library <- function(libname) {
 		dir.create(LIB_LOCATIONS, recursive=TRUE, showWarnings=FALSE)
 		install.packages(libname, lib=LIB_LOCATIONS, dependencies=TRUE, repos="https://cloud.r-project.org")
 	}
-	library(libname, lib.loc=LIB_LOCATIONS, character.only=TRUE)
+	suppressMessages(library(libname, lib.loc=LIB_LOCATIONS, character.only=TRUE))
 }

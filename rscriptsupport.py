@@ -26,20 +26,20 @@ def write_single_curve(category, curve_list):
             spamwriter.writerow([str(num) for num in curve_line])
 
 
-def curve_files_uptodate():
-    if os.path.isfile(os.path.join(OUTPUTFOLDER, 'all_group.csv')) or os.path.isfile(os.path.join(OUTPUTFOLDER, 'all.csv')):
+def curve_files_uptodate(prefix='all'):
+    if os.path.isfile(os.path.join(OUTPUTFOLDER, prefix + '_group.csv')) or os.path.isfile(os.path.join(OUTPUTFOLDER, prefix + '.csv')):
         return False
     return True   
 
 
-def store_for_r(curves):
+def store_for_r(curves, prefix='all'):
     # store separate lists
     for category, curve_list in curves.items():
         write_single_curve(category, curve_list)
 
     # store all curves
-    all_group_filename = os.path.join(OUTPUTFOLDER, 'all_group.csv')
-    all_filename = os.path.join(OUTPUTFOLDER, 'all.csv')
+    all_group_filename = os.path.join(OUTPUTFOLDER, prefix + '_group.csv')
+    all_filename = os.path.join(OUTPUTFOLDER, prefix + '.csv')
     with open(all_group_filename, 'w') as all_group_csvfile, open(all_filename, 'w') as all_csvfile:
         all_groupwriter = csv.writer(all_group_csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         allwriter = csv.writer(all_csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
