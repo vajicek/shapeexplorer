@@ -5,11 +5,12 @@
 import logging
 import glob
 import os
-import sampledata
-import subdivcurve
 import re
-import rscriptsupport
-import viewer
+
+from base import sampledata
+from base import subdivcurve
+from base import rscriptsupport
+from base import viewer
 
 # analysis parameters
 SEMILANDMARKS = 30
@@ -18,24 +19,24 @@ SUBDIRS = ["A_eneolit", "B_bronz", "C_latén", "D_raný středověk", "E_vrcholn
 IOERROR_SUBDIR = "IO error"
 
 
-def load_curves_in_dir(subdir, curves):
+def load_curves_in_dir(subdir, curves, semilandmarks):
     subdir_abs = os.path.join(DATAFOLDER, subdir)
     curves[subdir] = []
     for curve_file in glob.glob(subdir_abs + '/*.asc'):
         logging.info(curve_file)
-        curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), SEMILANDMARKS)
+        curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
         curves[subdir].append(curve)
     return curves
 
 
-def load_all_curves():
+def load_all_curves(semilandmarks):
     curves = {}
     for subdir in SUBDIRS:
-        curves = load_curves_in_dir(subdir, curves)
+        curves = load_curves_in_dir(subdir, curves, semilandmarks)
     return curves         
 
 
-def load_io_error_curves():
+def load_io_error_curves(semilandmarks):
     subdir_abs = os.path.join(DATAFOLDER, IOERROR_SUBDIR)
     curves={}
     for curve_file in glob.glob(subdir_abs + '/*.asc'):
@@ -43,15 +44,19 @@ def load_io_error_curves():
         m = re.search(".*\/(.*)\ (\d+)\..*$", curve_file)
         if m:      
             specimen_name = m.groups()[0]
-            curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), SEMILANDMARKS)
+            curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
             if specimen_name not in curves:
                 curves[specimen_name] = []
             curves[specimen_name].append(curve)
     return curves   
 
 
-def analyze_curves():
-    rscriptsupport.call_r('processcurves.R')
+def analyze_variability():
+    rscriptsupport.call_r('base/processcurves.R', ['--variability'])
+
+
+def analyze_io_error(output_dir):
+    rscriptsupport.call_r('base/processcurves.R', ['--io_error', "--output", output_dir])
 
 
 def show_curves(data, filename=None, radius=0.001, res=(1024, 1024)):
@@ -82,18 +87,13 @@ def visualize_means():
     show_curves(data)
 
 
-def process_curves():
-    if rscriptsupport.curve_files_uptodate():
-        curves = load_all_curves()
+def process_curves(semilandmarks=SEMILANDMARKS, force=False):
+    if rscriptsupport.curve_files_uptodate() or force:
+        curves = load_all_curves(semilandmarks)
         rscriptsupport.store_for_r(curves)
-    if rscriptsupport.curve_files_uptodate('io_error'):
-        rscriptsupport.store_for_r(load_io_error_curves(), prefix='io_error')
-    analyze_curves()
+    if rscriptsupport.curve_files_uptodate('io_error') or force:
+        rscriptsupport.store_for_r(load_io_error_curves(semilandmarks), prefix='io_error')
+    #analyze_curves()
     #visualize_all()
     #visualize_means()
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    process_curves()
 

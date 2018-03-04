@@ -9,8 +9,8 @@ import subprocess
 OUTPUTFOLDER = "output"
 
 
-def call_r(script):
-    cmd = ['Rscript', script]
+def call_r(script, args=[]):
+    cmd = ['Rscript', script] + args
     process = subprocess.Popen(' '.join(cmd), shell=True, stdout=subprocess.PIPE)
     for line in process.stdout:
         print(line.decode('utf-8'), end='')

@@ -1,8 +1,9 @@
 """ Sample data for viewer. """
 
 import logging
-import subdivcurve
 import vtk
+
+from base import subdivcurve
 
 
 def _make_vtk_id_list(it):
