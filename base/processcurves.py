@@ -55,8 +55,19 @@ class CurvesProcessor(object):
     
     def analyze_io_error(self, output_dir):
         self.riface.call_r('base/processcurves.R', ['--io_error', "--output", output_dir])
-    
+
     def _show_curves(self, data, filename=None, radius=0.001, res=(1024, 1024), opts=dict()):
+        if 'filename' in opts and type(opts['filename']) is list:
+            camera_settings = opts['camera']
+            filenames = opts['filename']
+            for indx, filename in enumerate(filenames):
+                opts['camera'] = camera_settings[indx]
+                opts['filename'] = filename
+                self._show_curves_view(data, filename=None, radius=radius, res=res, opts=opts)
+        else:
+            self._show_curves_view(data, filename=filename, radius=radius, res=res, opts=opts)
+
+    def _show_curves_view(self, data, filename=None, radius=0.001, res=(1024, 1024), opts=dict()):
         #
         if 'res' in opts:
             res = opts['res']
@@ -90,7 +101,10 @@ class CurvesProcessor(object):
         v = viewer.Viewer(vdata, size=res)
         v.filename = filename
         if 'camera' in opts:
-            v.set_camera(position=opts['camera']['position'], focal_point=opts['camera']['focal_point'], parallel_scale=opts['camera']['parallel_scale'])
+            v.set_camera(position=opts['camera']['position'],
+                         focal_point=opts['camera']['focal_point'],
+                         parallel_scale=opts['camera']['parallel_scale'],
+                         view_up=opts['camera']['view_up'])
         v.render()
     
     def visualize_all(self):
@@ -99,19 +113,7 @@ class CurvesProcessor(object):
         for i in range(len(data[""])):
             tmpdata = {"": data[""][0:(i + 1)]}
             self._show_curves(tmpdata, "output/filename%04d_%s.png" % (i, groups[i][0]))
-
-    def curve_diff(self, curve1, curve2):
-
-        def diff_sq(val1, val2):
-            return sum([(val1[i] - val2[i]) * (val1[i] - val2[i]) for i in range(3)])
-
-        diff = []
-        lms_count = len(curve1)
-        for i in range(lms_count):
-            val = diff_sq(curve1[i], curve2[i])
-            diff.append(val)
-        return diff
-    
+   
     def visualize_means(self, output_dir, prefix='means', opts=None):
         means = self.riface.load_from_r("output/" + prefix + ".csv")
         groups = self.riface.load_csv("output/" + prefix + "_group.csv")
@@ -126,10 +128,15 @@ class CurvesProcessor(object):
         for diff_pair in opts['diffs']:
             indx1 = diff_pair[0]
             indx2 = diff_pair[1]
-            opts['values'] = self.curve_diff(means[""][indx1], means[""][indx2])
-            data = {}
-            data[groups[indx1][0]] = [means[""][indx1]]
-            self._show_curves(data, opts=opts)
+            opts['values'] = self._curve_diff(means[""][indx1], means[""][indx2])
+            self._show_curves({ groups[indx1][0] : [means[""][indx1]]}, opts=opts)
+
+    def visualize_loadings(self, output_dir, prefix='means', opts=None):
+        means = self.riface.load_from_r("output/" + prefix + ".csv")
+        groups = self.riface.load_csv("output/" + prefix + "_group.csv")
+        loadings = self.riface.load_from_r(os.path.join(output_dir, "all_pca_loadings.csv"))       
+        opts['values'] = self._curve_dist(loadings[""][opts['pca_no']])
+        self._show_curves({ groups[7][0] : [means[""][7]]}, opts=opts)
 
     def preprocess_curves(self, semilandmarks, force=False):
         if self.riface.curve_files_uptodate() or force:
@@ -138,3 +145,26 @@ class CurvesProcessor(object):
         if self.riface.curve_files_uptodate('io_error') or force:
             self.riface.store_for_r(self._load_io_error_curves(semilandmarks), prefix='io_error')
 
+    def _curve_dist(self, curve):
+
+        def sq(val1):
+            return sum([val1[i] * val1[i] for i in range(3)])
+
+        dist_sq = []
+        lms_count = len(curve)
+        for i in range(lms_count):
+            val = sq(curve[i])
+            dist_sq.append(val)
+        return dist_sq
+
+    def _curve_diff(self, curve1, curve2):
+
+        def diff_sq(val1, val2):
+            return sum([(val1[i] - val2[i]) * (val1[i] - val2[i]) for i in range(3)])
+
+        lms_diff_sq = []
+        lms_count = len(curve1)
+        for i in range(lms_count):
+            val = diff_sq(curve1[i], curve2[i])
+            lms_diff_sq.append(val)
+        return lms_diff_sq

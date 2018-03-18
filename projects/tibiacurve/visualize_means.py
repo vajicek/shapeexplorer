@@ -15,11 +15,7 @@ def get_vis_opts(output_dir, radius, diffs):
     else:
         filename = os.path.join(output_dir, 'all_specimen')
     return dict(
-        camera=dict(
-            position=(0, 0, 1),
-            focal_point=(0, 0, 0),
-            parallel_scale=0.04
-            ),
+        camera=common.get_camera(),
         res=(4 * 1024, 512),
         colors={"A_eneolit": (1, 0, 0),
                "B_bronz": (0, 1, 0),
@@ -34,7 +30,7 @@ def get_vis_opts(output_dir, radius, diffs):
         radius=radius,
         diffs=diffs,
         curve=False,
-        filename = filename
+        filename = [filename + '_frontal', filename + '_medial']
         )
 
     

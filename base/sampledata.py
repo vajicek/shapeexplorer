@@ -120,7 +120,7 @@ def create_balls(points, radius, color=(1, 0, 0), values=None):
         ball.SetThetaResolution(64)
         ball.SetPhiResolution(64)
         if values:
-            r01 = (values[idx] - min_values) / max_values-min_values
+            r01 = (values[idx] - min_values) / (max_values - min_values)
             r = r01 * (radius[1] - radius[0]) + radius[0]  
         else:
             r = radius

@@ -114,11 +114,18 @@ broken_stick_criterium <- function(variability) {
 pca <- function(output_dir, prefix, sample_gpa, groups, xcomp, ycomp) {
 	filepath <- file.path(output_dir, paste0(prefix, "_pca.pdf"))
 	print(dim(sample_gpa))
-	pca <- prcomp(sample_gpa, scale = FALSE, retx = TRUE)
+	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)	
 	plot_pca(filepath, pca, groups, xcomp, ycomp)
+
+	# store loadings
+	write.table(t(pca$rotation), file.path(output_dir, paste0(prefix, "_pca_loadings.csv")), row.names=FALSE, col.names=FALSE, sep=";")
+
+	# store pca scores
+	write.table(pca$x, file.path(output_dir, paste0(prefix, "_pca_scores.csv")), row.names=FALSE, col.names=FALSE, sep=";")
+	
 	variability <- as.matrix(pca$sdev)^2
 	variability <- variability / sum(variability)
-	return(list(score=pca$x, variability=variability))
+	return(list(score=pca$x, variability=variability, loadings=pca$rotation))
 }
 
 eval_manova <- function(output_dir, prefix, dependent_variable, independent_variable) {

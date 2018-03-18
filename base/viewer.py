@@ -16,6 +16,7 @@ class Viewer(object):
     DEFAULT_SIZE = (300, 300)
     DEFAULT_CAMERA_POS = (1, 1, 1)
     DEFAULT_CAMERA_FP = (0, 0, 0)
+    DEFAULT_VIEW_UP = (0, 1, 0)
 
     def __init__(self, data, filename=None, size=DEFAULT_SIZE):
         self.filename = filename
@@ -38,10 +39,11 @@ class Viewer(object):
         dataActor.GetProperty().SetPointSize(12)
         return dataActor
 
-    def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP, parallel_scale=0.14):
+    def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP, parallel_scale=0.14, view_up=DEFAULT_VIEW_UP):
         camera = vtk.vtkCamera()
         camera.SetPosition(*position)
         camera.SetFocalPoint(*focal_point)
+        camera.SetViewUp(*view_up)
         self.renWin.GetRenderers().GetFirstRenderer().SetActiveCamera(camera)
         self.renWin.GetRenderers().GetFirstRenderer().ResetCamera()
         camera.ParallelProjectionOn()
