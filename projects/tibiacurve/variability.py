@@ -1,13 +1,16 @@
 #!/usr/bin/python3
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
+from projects.tibiacurve import common  
 
-#import sys
-#sys.stdout = open('/home/vajicek/Dropbox/TIBIA/CURVATURE/results/variability/output.txt', 'w')
+VARIABILITY_OUTPUT_DIR_BY_SLM = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/variability/sm%02d'
+VARIABILITY_OUTPUT_LOG = 'output.txt'
 
-# process input and io error
-from base import processcurves 
-processcurves.process_curves()
-processcurves.analyze_variability()
 
+def analyze_variability_slm(slm, output_dir, log_file):
+    curves_processor = common.get_processor(output_dir, log_file)
+    curves_processor.preprocess_curves(slm, True)
+    curves_processor.analyze_variability(output_dir)
+
+
+for slm in [10]:
+    analyze_variability_slm(slm, VARIABILITY_OUTPUT_DIR_BY_SLM % slm, VARIABILITY_OUTPUT_LOG)

@@ -2,6 +2,14 @@
 import vtk
 
 
+def ButtonEvent(obj, event):
+    # print(type(obj))
+    # print(obj)
+    renWin = obj.GetRenderWindow()
+    camera = renWin.GetRenderers().GetFirstRenderer().GetActiveCamera()
+    print(camera)
+
+        
 class Viewer(object):
     """Viewer class, render off-screen or to window"""
     
@@ -30,12 +38,14 @@ class Viewer(object):
         dataActor.GetProperty().SetPointSize(12)
         return dataActor
 
-    def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP):
+    def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP, parallel_scale=0.14):
         camera = vtk.vtkCamera()
         camera.SetPosition(*position)
         camera.SetFocalPoint(*focal_point)
         self.renWin.GetRenderers().GetFirstRenderer().SetActiveCamera(camera)
         self.renWin.GetRenderers().GetFirstRenderer().ResetCamera()
+        camera.ParallelProjectionOn()
+        camera.SetParallelScale(parallel_scale)
 
     def init_window(self, data):
         renderer = vtk.vtkRenderer()
@@ -58,6 +68,7 @@ class Viewer(object):
 
         iren = vtk.vtkRenderWindowInteractor()
         iren.SetRenderWindow(self.renWin)
+        iren.AddObserver("LeftButtonPressEvent", ButtonEvent)
         iren.Start()
 
     def to_file(self, filename):

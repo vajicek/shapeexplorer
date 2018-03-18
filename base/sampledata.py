@@ -13,10 +13,12 @@ def _make_vtk_id_list(it):
     return vil
 
 
-def cube_data():
+def cube_gizmo_data():
     # x = array of 8 3-tuples of float representing the vertices of a cube:
-    x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0),
-         (0.0, 0.0, 1.0), (1.0, 0.0, 1.0), (1.0, 1.0, 1.0), (0.0, 1.0, 1.0)]
+    #x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0),
+    #     (0.0, 0.0, 1.0), (1.0, 0.0, 1.0), (1.0, 1.0, 1.0), (0.0, 1.0, 1.0)]
+    x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.6, 0.0), (0.0, 0.6, 0.0),
+         (0.0, 0.0, 0.3), (1.0, 0.0, 0.3), (1.0, 0.6, 0.3), (0.0, 0.6, 0.3)]
 
     # pts = array of 6 4-tuples of vtkIdType (int) representing the faces
     #     of the cube in terms of the above vertices
@@ -31,7 +33,7 @@ def cube_data():
 
     # Load the point, cell, and data attributes.
     for i in range(8):
-        points.InsertPoint(i, x[i])
+        points.InsertPoint(i, [y*0.1 for y in x[i]])
     for i in range(6):
         polys.InsertNextCell(_make_vtk_id_list(pts[i]))
     for i in range(8):
@@ -55,7 +57,7 @@ def load_obj(filename):
     return obj_reader.GetOutput()
 
 
-def curve(polyline_data):
+def curve(polyline_data, radius=1):
     points = vtk.vtkPoints()
     for i, point in enumerate(polyline_data):
         points.InsertPoint(i, *point)
@@ -65,7 +67,7 @@ def curve(polyline_data):
 
     tubefilter = vtk.vtkTubeFilter()
     tubefilter.SetInputConnection(linesource.GetOutputPort())
-    tubefilter.SetRadius(1)
+    tubefilter.SetRadius(radius)
     tubefilter.SetNumberOfSides(50)
     tubefilter.Update()
     return tubefilter
@@ -107,12 +109,22 @@ def load_sl(curve_file, sl_count):
     return polydata
 
 
-def create_balls(points, radius, color=(1, 0, 0)):
+def create_balls(points, radius, color=(1, 0, 0), values=None):
     balls = []
-    for sl in points:
+    if values:
+        min_values = min(values)
+        max_values = max(values)
+    for idx, sl in enumerate(points):
         ball = vtk.vtkSphereSource()
         ball.SetCenter(*sl)
-        ball.SetRadius(radius)
+        ball.SetThetaResolution(64)
+        ball.SetPhiResolution(64)
+        if values:
+            r01 = (values[idx] - min_values) / max_values-min_values
+            r = r01 * (radius[1] - radius[0]) + radius[0]  
+        else:
+            r = radius
+        ball.SetRadius(r)
         balls.append(dict(dat=ball, col=color))
     return balls
 

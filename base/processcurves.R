@@ -73,18 +73,20 @@ plot_pca_ellipse <- function(x, y, level=0.95, col='r', lty=1) {
 }
 
 plot_pca <- function(filepath, pca, groups, xcomp, ycomp) {
-	pdf(filepath)
+	pdf(filepath, width=10, height=8)
 	colors <- c('red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 'black')
 	unique_groups <- unique(groups)$V1
 	groups_count <- length(unique_groups)
 	group_cols <- colors[1:groups_count]
 	spec_cols <- mapvalues(groups$V1, from=unique_groups, to=group_cols)
+	par(xpd = T, mar = par()$mar + c(0,0,0,9))
 	plot(x=pca$x[,xcomp],
 			y=pca$x[,ycomp],
 			col=spec_cols,
 			xlab=paste0('PCA ', toString(xcomp)),
 			ylab=paste0('PCA ', toString(ycomp)))
-	legend("bottomright", legend=unique_groups, col=group_cols, pch=1)
+	legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
+	#legend("bottomright", legend=unique_groups, col=group_cols, pch=1)
 	
 	for (group in 1:groups_count) {
 		group_mask <- groups$V1==unique_groups[group]
@@ -97,12 +99,16 @@ plot_pca <- function(filepath, pca, groups, xcomp, ycomp) {
 }
 
 broken_stick_criterium <- function(variability) {
+	cat("Broken stick_criterium: \n")
 	n <- length(variability)
 	broken <- rep(0, times=n)
 	for (i in 1:n) {
 		broken[i] <- 1/n * sum(1/i:n)
 	}
-	return(which.min(variability>broken) - 1)
+	index <- which.min(variability>broken) - 1
+	cat(paste0("Number of significant components: ", index, "\n"))
+	cat(paste0("Variation represented by significant components: ", sum(variability[1:index]), "\n"))
+	return(index)
 }
 
 pca <- function(output_dir, prefix, sample_gpa, groups, xcomp, ycomp) {
@@ -118,7 +124,7 @@ pca <- function(output_dir, prefix, sample_gpa, groups, xcomp, ycomp) {
 eval_manova <- function(output_dir, prefix, dependent_variable, independent_variable) {
 	lmodel <- lm(dependent_variable~., data=independent_variable)
 	fit <- manova(lmodel)
-	filename <- file.path(output_dir, paste0(prefix, "_manova.txt"))
+	filename <- file.path(output_dir, paste0(prefix, "manova.txt"))
 	sink(file=filename)
 	for (test in c("Pillai", "Wilks", "Roy", "Hotelling-Lawley")) {
 		s1 <- summary(fit, test=test)
@@ -127,7 +133,7 @@ eval_manova <- function(output_dir, prefix, dependent_variable, independent_vari
 	sink(file=NULL)
 }
 
-eval_hotelling <- function(data, groups, nperm) {
+eval_hotelling <- function(output_dir, data, groups, nperm) {
 	unique_groups <- as.character(unique(groups$V1))
 	groups_count <- length(unique_groups)
 	pairs <- expand.grid(1:groups_count, 1:groups_count)
@@ -141,11 +147,11 @@ eval_hotelling <- function(data, groups, nperm) {
 		testResult <- hotelling.test(data1, data2, perm=(nperm>0), B=nperm, progBar=FALSE)
 		pvals[pairs[i,]$Var1, pairs[i,]$Var2] <- testResult$pval 
 	}
-	write.csv(pvals, file.path("output", "pvals.csv"))
+	write.csv(pvals, file.path(output_dir, "hotelling_pvals.csv"))
 }
 
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
-	# remove dependencies
+	# pca (remove dependencies)
 	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, 1, 2)
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
@@ -154,18 +160,24 @@ statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	eval_manova(output_dir, "", sample_data, sample_groups)
 	
 	# paired hotelling
-	eval_hotelling(sample_data, sample_groups, 10000)
+	eval_hotelling(output_dir, sample_data, sample_groups, 10000)
 }
 
 mean_curves <- function(sample_gpa, sample_groups) {
 	unique_groups <- as.character(unique(sample_groups$V1))
 	groups_count <- length(unique_groups)
-	means <- matrix(ncol = dim(sample_gpa)[2], nrow = groups_count)
+	means <- matrix(ncol = dim(sample_gpa)[2], nrow = groups_count + 1)
+	
+	# group means
 	for (i in 1:groups_count) {
 		group_data <- sample_gpa[sample_groups==unique_groups[i],]
 		group_mean <- colMeans(group_data)
 		means[i,] = group_mean
 	}
+	
+	# all mean
+	means[groups_count + 1,] = colMeans(sample_gpa)
+	unique_groups = c(unique_groups, "all")
 	
 	return(list(means=means, names=unique_groups))
 }
@@ -175,20 +187,20 @@ store_named_curves <- function(curves, names, prefix) {
 	write.table(names, file.path("output", paste0(prefix, "_group.csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
 }
 
-process_curves <- function(sample) {
+curves_variability_analysis <- function(output_dir, sample) {
 	sample_data <- load_curves(sample)
 	sample_groups <- load_groups(sample)
 	
 	#
-	sample_gpa <- transform_pkn_to_bigtable(gpagen(sample_data)$coords)
+	sample_gpa <- transform_pkn_to_bigtable(gpagen(sample_data, print.progress=FALSE)$coords)
 	store_gpa(sample_gpa, sample)
 	
 	#
 	means <- mean_curves(sample_gpa, sample_groups)
-	store_named_curves(means$means, means$names, sample)
+	store_named_curves(means$means, means$names, 'means')
 	
 	#
-	#statistics(sample, sample_gpa, sample_groups)
+	statistics(output_dir, sample, sample_gpa, sample_groups)
 }
 
 # sum_curve (sum (curve - mean curve)^2) / (dim * slc)
@@ -300,7 +312,7 @@ if (opt$io_error) {
 	res <- io_error_analysis(opt$output)
 } else if (opt$variability) {
 	cat("VARIABILITY\n")
-	process_curves("all")
+	curves_variability_analysis(opt$output, "all")
 }
 
 
