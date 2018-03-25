@@ -43,21 +43,21 @@ transform_pkn_to_bigtable <- function(data) {
 	return(bigtable)
 }
 
-load_curves <- function(sample) {
-	filepath <- file.path("output", paste0(sample, ".csv"))
+load_curves <- function(sample, input_dir) {
+	filepath <- file.path(input_dir, paste0(sample, ".csv"))
 	curve_data <- read.csv(filepath, header=FALSE, sep = ';', dec='.')
 	curve_data_pkn <- transform_bigtable_to_pkn(curve_data)
 	return(curve_data_pkn)
 }
 
-load_groups <- function(sample_group_file) {
-	filepath <- file.path("output", paste0(sample_group_file, "_group.csv"))
+load_groups <- function(sample_group_file, input_dir) {
+	filepath <- file.path(input_dir, paste0(sample_group_file, "_group.csv"))
 	groups <- read.csv(filepath, header=FALSE, sep = ';', dec='.')
 	return(groups)
 }
 
-store_gpa <- function(table, sample) {
-	filepath <- file.path("output", paste0(sample, "_gpa", ".csv"))
+store_gpa <- function(table, sample, input_dir) {
+	filepath <- file.path(input_dir, paste0(sample, "_gpa", ".csv"))
 	write.table(table, filepath, row.names = FALSE, col.names = FALSE, sep=';')
 }
 
@@ -189,22 +189,22 @@ mean_curves <- function(sample_gpa, sample_groups) {
 	return(list(means=means, names=unique_groups))
 }
 
-store_named_curves <- function(curves, names, prefix) {
-	write.table(curves, file.path("output", paste0(prefix, ".csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
-	write.table(names, file.path("output", paste0(prefix, "_group.csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
+store_named_curves <- function(curves, names, prefix, output_dir) {
+	write.table(curves, file.path(output_dir, paste0(prefix, ".csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
+	write.table(names, file.path(output_dir, paste0(prefix, "_group.csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
 }
 
 curves_variability_analysis <- function(output_dir, sample) {
-	sample_data <- load_curves(sample)
-	sample_groups <- load_groups(sample)
+	sample_data <- load_curves(sample, output_dir)
+	sample_groups <- load_groups(sample, output_dir)
 	
 	#
 	sample_gpa <- transform_pkn_to_bigtable(gpagen(sample_data, print.progress=FALSE)$coords)
-	store_gpa(sample_gpa, sample)
+	store_gpa(sample_gpa, sample, output_dir)
 	
 	#
 	means <- mean_curves(sample_gpa, sample_groups)
-	store_named_curves(means$means, means$names, 'means')
+	store_named_curves(means$means, means$names, 'means', output_dir)
 	
 	#
 	statistics(output_dir, sample, sample_gpa, sample_groups)
@@ -276,7 +276,7 @@ curves_group_error <- function(output_dir, curves, groups) {
 }
 
 io_error_analysis <- function(output_dir) {
-	io_error_sample_data <- load_curves("io_error")
+	io_error_sample_data <- load_curves("io_error", output_dir)
 	cat("Input data dimension (lm x dim x specimens): \n")
 	print(dim(io_error_sample_data))
 	

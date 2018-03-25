@@ -15,7 +15,7 @@ def _make_vtk_id_list(it):
 
 def cube_gizmo_data():
     # x = array of 8 3-tuples of float representing the vertices of a cube:
-    #x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0),
+    # x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0),
     #     (0.0, 0.0, 1.0), (1.0, 0.0, 1.0), (1.0, 1.0, 1.0), (0.0, 1.0, 1.0)]
     x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.6, 0.0), (0.0, 0.6, 0.0),
          (0.0, 0.0, 0.3), (1.0, 0.0, 0.3), (1.0, 0.6, 0.3), (0.0, 0.6, 0.3)]
@@ -33,7 +33,7 @@ def cube_gizmo_data():
 
     # Load the point, cell, and data attributes.
     for i in range(8):
-        points.InsertPoint(i, [y*0.1 for y in x[i]])
+        points.InsertPoint(i, [y * 0.1 for y in x[i]])
     for i in range(6):
         polys.InsertNextCell(_make_vtk_id_list(pts[i]))
     for i in range(8):
@@ -127,6 +127,57 @@ def create_balls(points, radius, color=(1, 0, 0), values=None):
         ball.SetRadius(r)
         balls.append(dict(dat=ball, col=color))
     return balls
+
+# compute orientation matrix
+def get_arrow_orintation(endPoint, startPoint, norm=[0, 0, 1]):
+    normalizedX = [0 for i in range(3)]
+    normalizedY = [0 for i in range(3)]
+    normalizedZ = [0 for i in range(3)]
+
+    math = vtk.vtkMath()
+    math.Subtract(endPoint, startPoint, normalizedX)
+    length = math.Norm(normalizedX)
+    math.Normalize(normalizedX)
+     
+    # The Z axis is an arbitrary vector cross X
+    math.Cross(normalizedX, norm, normalizedZ)
+    math.Normalize(normalizedZ)
+     
+    # The Y axis is Z cross X
+    math.Cross(normalizedZ, normalizedX, normalizedY)
+     
+    # Create the direction cosine matrix
+    matrix = vtk.vtkMatrix4x4()
+    matrix.Identity()
+    for i in range(3):
+        matrix.SetElement(i, 0, normalizedX[i])
+        matrix.SetElement(i, 1, normalizedY[i])
+        matrix.SetElement(i, 2, normalizedZ[i])
+    return matrix, length
+
+
+def create_arrows(points, radius, color, other_points):
+    arrows = []
+    for lm1, lm2 in zip(points, other_points):
+        arrowSource = vtk.vtkArrowSource()
+        arrowSource.SetTipResolution(36);
+
+        orientation, length = get_arrow_orintation(lm2, lm1)
+
+        transform = vtk.vtkTransform()
+        transform.Translate(lm1[0], lm1[1], lm1[2])
+        transform.Concatenate(orientation)
+        length *= radius
+        transform.Scale(length, length, length)
+ 
+        transformFilter = vtk.vtkTransformPolyDataFilter()
+        transformFilter.SetInputConnection(arrowSource.GetOutputPort())
+        transformFilter.SetTransform(transform)
+        transformFilter.Update()
+
+        arrows.append(dict(dat=transformFilter, col=color))
+        
+    return arrows
 
 
 def load_sl_balls(curve_file, sl_count, radius, color=(1, 0, 0)):
