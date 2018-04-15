@@ -3,8 +3,6 @@ import vtk
 
 
 def ButtonEvent(obj, event):
-    # print(type(obj))
-    # print(obj)
     renWin = obj.GetRenderWindow()
     camera = renWin.GetRenderers().GetFirstRenderer().GetActiveCamera()
     print(camera)
@@ -21,9 +19,26 @@ class Viewer(object):
     def __init__(self, data, filename=None, size=DEFAULT_SIZE):
         self.filename = filename
         self.size = size
-        self.init_window(data)
+        self.debug_cam = False
+        self._init_window(data)
 
-    def init_gui_element(self, data):
+    def render(self):
+        if self.filename != None:
+            self._to_file(self.filename)
+        else:
+            self._run_window()
+
+    def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP, parallel_scale=0.14, view_up=DEFAULT_VIEW_UP):
+        camera = vtk.vtkCamera()
+        camera.SetPosition(*position)
+        camera.SetFocalPoint(*focal_point)
+        camera.SetViewUp(*view_up)
+        self.renWin.GetRenderers().GetFirstRenderer().SetActiveCamera(camera)
+        self.renWin.GetRenderers().GetFirstRenderer().ResetCamera()
+        camera.ParallelProjectionOn()
+        camera.SetParallelScale(parallel_scale)
+
+    def _init_gui_element(self, data):
         dataMapper = vtk.vtkPolyDataMapper()
         if isinstance(data, vtk.vtkPolyDataAlgorithm):
             dataMapper.SetInputConnection(data.GetOutputPort())
@@ -39,20 +54,11 @@ class Viewer(object):
         dataActor.GetProperty().SetPointSize(12)
         return dataActor
 
-    def set_camera(self, position=DEFAULT_CAMERA_POS, focal_point=DEFAULT_CAMERA_FP, parallel_scale=0.14, view_up=DEFAULT_VIEW_UP):
-        camera = vtk.vtkCamera()
-        camera.SetPosition(*position)
-        camera.SetFocalPoint(*focal_point)
-        camera.SetViewUp(*view_up)
-        self.renWin.GetRenderers().GetFirstRenderer().SetActiveCamera(camera)
-        self.renWin.GetRenderers().GetFirstRenderer().ResetCamera()
-        camera.ParallelProjectionOn()
-        camera.SetParallelScale(parallel_scale)
-
-    def init_window(self, data):
+    def _init_window(self, data):
+        """ Expect data to be vtkPolyDataAlgorithm or vtkPolyData. """
         renderer = vtk.vtkRenderer()
         for data_element in data:
-            actor = self.init_gui_element(data_element["dat"])
+            actor = self._init_gui_element(data_element["dat"])
             actor.GetProperty().SetColor(*data_element["col"]);
             renderer.AddActor(actor)
         renderer.SetBackground(1, 1, 1)
@@ -65,15 +71,16 @@ class Viewer(object):
 
         self.set_camera()
 
-    def run_window(self):
+    def _run_window(self):
         self.renWin.SetOffScreenRendering(0)
 
         iren = vtk.vtkRenderWindowInteractor()
         iren.SetRenderWindow(self.renWin)
-        iren.AddObserver("LeftButtonPressEvent", ButtonEvent)
+        if self.debug_cam:
+            iren.AddObserver("LeftButtonPressEvent", ButtonEvent)
         iren.Start()
 
-    def to_file(self, filename):
+    def _to_file(self, filename):
         self.renWin.SetOffScreenRendering(1)
 
         win2img = vtk.vtkWindowToImageFilter()
@@ -84,9 +91,3 @@ class Viewer(object):
         pngWriter.SetFileName(filename)
         pngWriter.SetInputConnection(win2img.GetOutputPort())
         pngWriter.Write()
-
-    def render(self):
-        if self.filename != None:
-            self.to_file(self.filename)
-        else:
-            self.run_window()

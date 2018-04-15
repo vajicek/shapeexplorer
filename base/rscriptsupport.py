@@ -8,17 +8,20 @@ import subprocess
 
 
 class RScripInterface(object):
+    """ Interface class for R: call Rscript, read and write input/output data."""
 
     def __init__(self, output):
         self.output = output
 
     def call_r(self, script, args=[]):
+        """ Call Rscript and pass output to print."""
         cmd = ['Rscript', script] + args
         process = subprocess.Popen(' '.join(cmd), shell=True, stdout=subprocess.PIPE)
         for line in process.stdout:
             print(line.decode('utf-8'), end='')
     
     def write_single_curve(self, category, curve_list):
+        """ Write curves to .csv file curve-by-line."""
         logging.info("processing category: " + category)
         with open(os.path.join(self.output, category + '.csv'), 'w') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter=';',
@@ -28,11 +31,14 @@ class RScripInterface(object):
                 spamwriter.writerow([str(num) for num in curve_line])
     
     def curve_files_uptodate(self, prefix='all'):
+        """ Return true if prefix.csv and prefix_group.csv exist."""
         if os.path.isfile(os.path.join(self.output, prefix + '_group.csv')) or os.path.isfile(os.path.join(self.output, prefix + '.csv')):
             return False
         return True   
     
     def store_for_r(self, curves, prefix='all'):
+        """ Store dictionary of curve lists: curve per file and all curves to
+        a single file with prefix + prefix_group.csv (for preserving groups)."""
         # store separate lists
         for category, curve_list in curves.items():
             self.write_single_curve(category, curve_list)
@@ -50,6 +56,7 @@ class RScripInterface(object):
                     all_groupwriter.writerow([category])
     
     def load_csv(self, filename):
+        """ Read data from CSV."""
         with open(filename, 'r') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             landmarks = []
@@ -58,6 +65,7 @@ class RScripInterface(object):
             return landmarks
     
     def write_csv(self, filename, groups):
+        """ Write data to CSV."""
         filename_path = os.path.join(self.output, filename + '.csv')
         ofile = open(filename_path, "w")
         writer = csv.writer(ofile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -69,6 +77,7 @@ class RScripInterface(object):
         ofile.close()
     
     def load_from_r(self, filename, dim=3):
+        """ Load landmarks from bigtable file to list of landmarks."""
         retval = {}
         with open(filename, 'r') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)

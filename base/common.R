@@ -5,6 +5,7 @@
 
 LIB_LOCATIONS=file.path(path.expand("~"), 'R/library')
 
+# Import library and install if required. 
 use_library <- function(libname) {
 	if (libname %in% rownames(installed.packages(lib.loc=LIB_LOCATIONS)) == FALSE) {
 		dir.create(LIB_LOCATIONS, recursive=TRUE, showWarnings=FALSE)

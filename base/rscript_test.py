@@ -2,7 +2,8 @@
 
 """ Test calling r interpreter from python."""
 
-import processcurves
+import sys
+from base import rscriptsupport
 
 if __name__ == "__main__":
-    processcurves.call_r("rscript_test.R")
+    rscriptsupport.RScripInterface(sys.argv[1]).call_r("rscript_test.R")

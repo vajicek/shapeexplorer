@@ -16,20 +16,28 @@ from base import viewer
 
 
 class CurvesProcessor(object):
+    """ Analyze groups of curves. """
 
     def __init__(self, datafolder, subdirs, io_error_subdir, output):
+        """ datafolder - Data folder.
+        subdirs - List of group subfolders.
+        io_error_subdir - Folder with IO error data.
+        output - Output folder. """
         self.datafolder = datafolder
         self.subdirs = subdirs
         self.io_error_subdir = io_error_subdir
         self.riface = rscriptsupport.RScripInterface(output)
 
     def analyze_variability(self, output_dir):
+        """ Analyze variability of the sample pre-processed to given output."""
         self.riface.call_r('base/processcurves.R', ['--variability', "--output", output_dir])
     
     def analyze_io_error(self, output_dir):
+        """ Analyze io error via R."""
         self.riface.call_r('base/processcurves.R', ['--io_error', "--output", output_dir])
     
     def visualize_all(self, input_dir, output_dir):
+        """ Visualize all curves."""
         data = self.riface.load_from_r(os.path.join(input_dir, "all_gpa.csv"))
         groups = self.riface.load_csv(os.path.join(input_dir, "all_group.csv"))
         for i in range(len(data[""])):
@@ -37,6 +45,7 @@ class CurvesProcessor(object):
             self._show_curves(tmpdata, os.path.join(output_dir, "filename%04d_%s.png" % (i, groups[i][0])))
    
     def visualize_means(self, input_dir, prefix='means', opts=None):
+        """ Visualize means."""
         means = self.riface.load_from_r(os.path.join(input_dir, prefix + ".csv"))
         groups = self.riface.load_csv(os.path.join(input_dir, prefix + "_group.csv"))
         data = {}
@@ -45,6 +54,7 @@ class CurvesProcessor(object):
         self._show_curves(data, opts=opts)
 
     def visualize_mean_difference(self, input_dir, prefix='means', opts=None):
+        """ Visualize mean differences for given pairs."""
         means = self.riface.load_from_r(os.path.join(input_dir, prefix + ".csv"))
         groups = self.riface.load_csv(os.path.join(input_dir, prefix + "_group.csv"))
         for diff_pair in opts['diffs']:
@@ -55,6 +65,7 @@ class CurvesProcessor(object):
             self._show_curves({ groups[indx1][0] : [means[""][indx1]]}, opts=opts)
 
     def visualize_loadings(self, input_dir, output_dir, prefix='means', opts=None):
+        """ Visualize curve variability loadings."""
         means = self.riface.load_from_r(os.path.join(input_dir, prefix + ".csv"))
         groups = self.riface.load_csv(os.path.join(input_dir, prefix + "_group.csv"))
         loadings = self.riface.load_from_r(os.path.join(input_dir, "all_pca_loadings.csv"))       
@@ -63,6 +74,7 @@ class CurvesProcessor(object):
         self._show_curves({ groups[7][0] : [means[""][7]]}, opts=opts)
     
     def preprocess_curves(self, semilandmarks, force=False):
+        """ Preprocess curves and store to files for R."""
         if self.riface.curve_files_uptodate() or force:
             curves, names = self._load_all_curves(semilandmarks)
             self.riface.store_for_r(curves)

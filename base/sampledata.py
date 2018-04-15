@@ -51,6 +51,7 @@ def cube_gizmo_data():
 
 
 def load_obj(filename):
+    """ Load OBJ file with vtk reader. """
     obj_reader = vtk.vtkOBJReader()
     obj_reader.SetFileName(filename)
     obj_reader.Update()
@@ -58,6 +59,7 @@ def load_obj(filename):
 
 
 def curve(polyline_data, radius=1):
+    """ Get VTK tube from list of coordinates. """
     points = vtk.vtkPoints()
     for i, point in enumerate(polyline_data):
         points.InsertPoint(i, *point)
@@ -74,6 +76,7 @@ def curve(polyline_data, radius=1):
 
 
 def load_polyline_data(polyline_data_file):
+    """ Load polyline data. """
     polyline_data = []
     with open(polyline_data_file, "r") as f:
         for line in f:
@@ -91,6 +94,7 @@ def load_polyline_data(polyline_data_file):
 
 
 def load_sl(curve_file, sl_count):
+    """ Load data and return vtkPolyData with (2D) points."""
     polyline_data = load_polyline_data(curve_file)
     sls = subdivcurve.subdivide_curve(polyline_data, sl_count)
     points = vtk.vtkPoints()
@@ -110,6 +114,7 @@ def load_sl(curve_file, sl_count):
 
 
 def create_balls(points, radius, color=(1, 0, 0), values=None):
+    """ Create balls frol list of points."""
     balls = []
     if values:
         min_values = min(values)
@@ -128,11 +133,16 @@ def create_balls(points, radius, color=(1, 0, 0), values=None):
         balls.append(dict(dat=ball, col=color))
     return balls
 
-# compute orientation matrix
+
+def zero3():
+    return [0 for unused_i in range(3)]
+
+
 def get_arrow_orintation(endPoint, startPoint, norm=[0, 0, 1]):
-    normalizedX = [0 for i in range(3)]
-    normalizedY = [0 for i in range(3)]
-    normalizedZ = [0 for i in range(3)]
+    """ Compute orientation matrix."""
+    normalizedX = zero3()
+    normalizedY = zero3()
+    normalizedZ = zero3()
 
     math = vtk.vtkMath()
     math.Subtract(endPoint, startPoint, normalizedX)
@@ -157,6 +167,7 @@ def get_arrow_orintation(endPoint, startPoint, norm=[0, 0, 1]):
 
 
 def create_arrows(points, radius, color, other_points):
+    """ Create arrays from points to other_points. And return list of dicts()."""
     arrows = []
     for lm1, lm2 in zip(points, other_points):
         arrowSource = vtk.vtkArrowSource()
@@ -181,6 +192,7 @@ def create_arrows(points, radius, color, other_points):
 
 
 def load_sl_balls(curve_file, sl_count, radius, color=(1, 0, 0)):
+    """ Load data and create balls dict() list."""
     points = load_polyline_data(curve_file)
     if sl_count:
         points = subdivcurve.subdivide_curve(points, sl_count)
@@ -188,6 +200,7 @@ def load_sl_balls(curve_file, sl_count, radius, color=(1, 0, 0)):
 
 
 def load_curve(curve_file, subdivide_to=None):
+    """" Load curve from file (optionally subdivide) and return tube."""
     polyline_data = load_polyline_data(curve_file)
     if subdivide_to:
         return curve(subdivcurve.subdivide_curve(polyline_data, subdivide_to))

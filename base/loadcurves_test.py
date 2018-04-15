@@ -4,9 +4,10 @@
 
 import logging
 import os
-import processcurves
-import sampledata
-import viewer
+import sys
+from base import processcurves
+from base import sampledata
+from base import viewer
 
 RESOLUTION = (1024, 1024)
 OUTPUTFOLDER = "output"
@@ -25,5 +26,5 @@ def plot_curves(curves):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    plot_curves(processcurves.load_all_curves())
+    plot_curves(processcurves.CurvesProcessor(sys.argv[1], [sys.argv[2]], None)._load_all_curves(20))
 
