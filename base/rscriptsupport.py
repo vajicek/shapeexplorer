@@ -64,13 +64,13 @@ class RScripInterface(object):
                 landmarks.append(row)
             return landmarks
     
-    def write_csv(self, filename, groups):
+    def write_csv(self, filename, grouped_data):
         """ Write data to CSV."""
         filename_path = os.path.join(self.output, filename + '.csv')
         ofile = open(filename_path, "w")
         writer = csv.writer(ofile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         order = 1
-        for group_name, group in groups.items():
+        for group_name, group in grouped_data.items():
             for row in group:
                 writer.writerow([order, group_name] + (row if isinstance(row, list) else [row]))
                 order = order + 1

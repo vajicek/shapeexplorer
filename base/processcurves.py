@@ -28,6 +28,10 @@ class CurvesProcessor(object):
         self.io_error_subdir = io_error_subdir
         self.riface = rscriptsupport.RScripInterface(output)
 
+    def length_analysis(self, output_dir):
+        self.riface.call_r('base/processcurves.R', ['--length_analysis', "--output", output_dir])
+        pass
+
     def analyze_variability(self, output_dir):
         """ Analyze variability of the sample pre-processed to given output."""
         self.riface.call_r('base/processcurves.R', ['--variability', "--output", output_dir])
@@ -76,12 +80,29 @@ class CurvesProcessor(object):
     def preprocess_curves(self, semilandmarks, force=False):
         """ Preprocess curves and store to files for R."""
         if self.riface.curve_files_uptodate() or force:
-            curves, names = self._load_all_curves(semilandmarks)
+            curves, names = self.load_all_curves(semilandmarks)
             self.riface.store_for_r(curves)
             self.riface.write_csv('names', names)
         if self.riface.curve_files_uptodate('io_error') or force:
             self.riface.store_for_r(self._load_io_error_curves(semilandmarks), prefix='io_error')
-
+    
+    def load_all_curves(self, semilandmarks):
+        """Load curves by groups and optionally """
+        curves = {}
+        names = {}
+        for subdir in self.subdirs:
+            curves = self._load_curves_in_dir(subdir, curves, names, semilandmarks)
+        return curves, names
+    
+    def measure_length(self, curves):
+        curve_lengths = {}
+        for group_name, group_curves in curves.items():
+            curve_lengths[group_name] = []
+            for curve in group_curves:
+                curve_len = subdivcurve.curve_length(curve)
+                curve_lengths[group_name].append(curve_len)
+        return curve_lengths
+    
     def _vectorize_loadings(self, mean, loadings):
         loaded_mean = copy.deepcopy(mean)
         for lm, lm_loadings in zip(loaded_mean, loadings):
@@ -96,18 +117,14 @@ class CurvesProcessor(object):
         names[subdir] = []
         for curve_file in glob.glob(subdir_abs + '/*.asc'):
             logging.info(curve_file)
-            curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
+            if semilandmarks:
+                curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
+            else:
+                curve = sampledata.load_polyline_data(curve_file)
             curves[subdir].append(curve)
             names[subdir].append(curve_file)
         return curves
-    
-    def _load_all_curves(self, semilandmarks):
-        curves = {}
-        names = {}
-        for subdir in self.subdirs:
-            curves = self._load_curves_in_dir(subdir, curves, names, semilandmarks)
-        return curves, names
-    
+
     def _load_io_error_curves(self, semilandmarks):
         subdir_abs = os.path.join(self.datafolder, self.io_error_subdir)
         curves = {}

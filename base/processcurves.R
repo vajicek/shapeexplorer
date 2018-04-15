@@ -218,6 +218,30 @@ curves_variability_analysis <- function(output_dir, sample) {
 	statistics(output_dir, sample, sample_gpa, sample_groups)
 }
 
+curves_length_analysis <- function(output_dir) {
+	# load data
+	filepath <- file.path(output_dir, "curves_lengths.csv.csv")
+	lengths <- read.csv(filepath, header=FALSE, sep = ';', dec='.')
+	data <- data.frame(length=lengths$V3, group=lengths$V2)
+
+	# plot
+	pdf(file.path(output_dir, "curves_length.pdf"), width=14, height=8)
+	boxplot(length~group,
+			data=data,
+			main="Lengths per group", 
+			xlab="Group",
+			ylab="Length")
+	dev.off()
+
+	# statistics
+	cat("ANOVA\n")
+	fit <- aov(length ~ group, data=data)
+	print(summary(fit))
+	
+	cat("PAIRED t-Test\n")
+	pairwise.t.test (data$length, data$group, p.adj="none")
+}
+
 # sum_curve (sum (curve - mean curve)^2) / (dim * slc)
 curves_variance <- function(curves) {
 	curves_dim <- dim(curves)
@@ -318,7 +342,8 @@ io_error_analysis <- function(output_dir) {
 option_list = list(
 		make_option(c("--output"), default=""),
 		make_option(c("--io_error"), action="store_true", default=FALSE),
-		make_option(c("--variability"), action="store_true", default=FALSE)
+		make_option(c("--variability"), action="store_true", default=FALSE),
+		make_option(c("--length_analysis"), action="store_true", default=FALSE)
 );
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -328,4 +353,7 @@ if (opt$io_error) {
 } else if (opt$variability) {
 	cat("VARIABILITY\n")
 	curves_variability_analysis(opt$output, "all")
+} else if (opt$length_analysis) {
+	cat("CURVE LENGTH ANALYSIS\n")
+	curves_length_analysis(opt$output)
 }
