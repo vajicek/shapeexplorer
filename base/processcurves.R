@@ -88,7 +88,6 @@ plot_pca <- function(output_dir, pca, groups, params) {
 				xlab=paste0('PCA ', toString(param1$xcomp)),
 				ylab=paste0('PCA ', toString(param1$ycomp)))
 		legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
-		#legend("bottomright", legend=unique_groups, col=group_cols, pch=1)
 
 		for (group in 1:groups_count) {
 			group_mask <- groups$V1==unique_groups[group]
@@ -114,9 +113,9 @@ broken_stick_criterium <- function(variability) {
 	return(index)
 }
 
-pca <- function(output_dir, prefix, sample_gpa, groups, params) {
+pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)
-	plot_pca(output_dir, pca, groups, params)
+	plot_pca(output_dir, pca, groups, pca_plot_params)
 
 	# store loadings
 	write.table(t(pca$rotation), file.path(output_dir, paste0(prefix, "_pca_loadings.csv")), row.names=FALSE, col.names=FALSE, sep=";")
@@ -158,14 +157,17 @@ eval_hotelling <- function(output_dir, data, groups, nperm) {
 	write.csv(pvals, file.path(output_dir, "hotelling_pvals.csv"))
 }
 
+get_pca_plot_params <- function(filename_prefix) {
+	pca95 <- list(xcomp=1, ycomp=2, level=0.95, filename=paste0(filename_prefix, "_95", "_pca.pdf"))
+	pca85 <- list(xcomp=1, ycomp=2, level=0.85, filename=paste0(filename_prefix, "_85", "_pca.pdf"))
+	pca70 <- list(xcomp=1, ycomp=2, level=0.70, filename=paste0(filename_prefix, "_70", "_pca.pdf"))
+	pca55 <- list(xcomp=1, ycomp=2, level=0.55, filename=paste0(filename_prefix, "_55", "_pca.pdf"))
+	return(list(pca95, pca85, pca70, pca55))
+}
+
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
-	pca95 <- list(xcomp=1, ycomp=2, level=0.95, filename=paste0(sample, "_95", "_pca.pdf"))
-	pca85 <- list(xcomp=1, ycomp=2, level=0.85, filename=paste0(sample, "_85", "_pca.pdf"))
-	pca70 <- list(xcomp=1, ycomp=2, level=0.70, filename=paste0(sample, "_70", "_pca.pdf"))
-	pca55 <- list(xcomp=1, ycomp=2, level=0.55, filename=paste0(sample, "_55", "_pca.pdf"))
-
-	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, list(pca95, pca85, pca70, pca55))
+	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
 
