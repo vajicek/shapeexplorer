@@ -64,8 +64,9 @@ class CurvesProcessor(object):
     
     def preprocess_curves(self, semilandmarks, force=False):
         if self.riface.curve_files_uptodate() or force:
-            curves = self._load_all_curves(semilandmarks)
+            curves, names = self._load_all_curves(semilandmarks)
             self.riface.store_for_r(curves)
+            self.riface.write_csv('names', names)
         if self.riface.curve_files_uptodate('io_error') or force:
             self.riface.store_for_r(self._load_io_error_curves(semilandmarks), prefix='io_error')
 
@@ -77,20 +78,23 @@ class CurvesProcessor(object):
             lm[2] += lm_loadings[2]
         return loaded_mean
     
-    def _load_curves_in_dir(self, subdir, curves, semilandmarks):
+    def _load_curves_in_dir(self, subdir, curves, names, semilandmarks):
         subdir_abs = os.path.join(self.datafolder, subdir)
         curves[subdir] = []
+        names[subdir] = []
         for curve_file in glob.glob(subdir_abs + '/*.asc'):
             logging.info(curve_file)
             curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
             curves[subdir].append(curve)
+            names[subdir].append(curve_file)
         return curves
     
     def _load_all_curves(self, semilandmarks):
         curves = {}
+        names = {}
         for subdir in self.subdirs:
-            curves = self._load_curves_in_dir(subdir, curves, semilandmarks)
-        return curves         
+            curves = self._load_curves_in_dir(subdir, curves, names, semilandmarks)
+        return curves, names
     
     def _load_io_error_curves(self, semilandmarks):
         subdir_abs = os.path.join(self.datafolder, self.io_error_subdir)

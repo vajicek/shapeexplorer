@@ -1,5 +1,5 @@
 # TODO: Add comment
-# 
+#
 # Author: vajicek
 ###############################################################################
 
@@ -65,37 +65,40 @@ store_gpa <- function(table, sample, input_dir) {
 plot_pca_ellipse <- function(x, y, level=0.95, col='r', lty=1) {
 	n <- length(x)
 	ret <- rep(FALSE, times=n)
-	if (n > 2) {			
+	if (n > 2) {
 		cv <- cov(cbind(x,y))
 		cr <- cor(cbind(x,y))
 		lines(ellipse(cv, centre=c(mean(x), mean(y)), level=level), col=col, lty=lty)
 	}
 }
 
-plot_pca <- function(filepath, pca, groups, xcomp, ycomp) {
-	pdf(filepath, width=10, height=8)
-	colors <- c('red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 'black')
-	unique_groups <- unique(groups)$V1
-	groups_count <- length(unique_groups)
-	group_cols <- colors[1:groups_count]
-	spec_cols <- mapvalues(groups$V1, from=unique_groups, to=group_cols)
-	par(xpd = T, mar = par()$mar + c(0,0,0,9))
-	plot(x=pca$x[,xcomp],
-			y=pca$x[,ycomp],
-			col=spec_cols,
-			xlab=paste0('PCA ', toString(xcomp)),
-			ylab=paste0('PCA ', toString(ycomp)))
-	legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
-	#legend("bottomright", legend=unique_groups, col=group_cols, pch=1)
-	
-	for (group in 1:groups_count) {
-		group_mask <- groups$V1==unique_groups[group]
-		x <- pca$x[group_mask, xcomp]
-		y <- pca$x[group_mask, ycomp]
-		plot_pca_ellipse(x=x, y=y, col=group_cols[group])
+plot_pca <- function(output_dir, pca, groups, params) {
+	for (param1 in params) {
+		pdf(file.path(output_dir, param1$filename), width=10, height=8)
+		colors <- c('red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'black')
+		unique_groups <- unique(groups)$V1
+		groups_count <- length(unique_groups)
+		group_cols <- colors[1:groups_count]
+		spec_cols <- mapvalues(groups$V1, from=unique_groups, to=group_cols)
+		palette(group_cols)
+		par(xpd = T, mar = par()$mar + c(0,0,0,9))
+		plot(x=pca$x[,param1$xcomp],
+				y=pca$x[,param1$ycomp],
+				col=spec_cols,
+				xlab=paste0('PCA ', toString(param1$xcomp)),
+				ylab=paste0('PCA ', toString(param1$ycomp)))
+		legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
+		#legend("bottomright", legend=unique_groups, col=group_cols, pch=1)
+
+		for (group in 1:groups_count) {
+			group_mask <- groups$V1==unique_groups[group]
+			x <- pca$x[group_mask, param1$xcomp]
+			y <- pca$x[group_mask, param1$ycomp]
+			plot_pca_ellipse(x=x, y=y, level=param1$level, col=group_cols[group])
+		}
+
+		dev.off()
 	}
-	
-	dev.off()
 }
 
 broken_stick_criterium <- function(variability) {
@@ -111,18 +114,16 @@ broken_stick_criterium <- function(variability) {
 	return(index)
 }
 
-pca <- function(output_dir, prefix, sample_gpa, groups, xcomp, ycomp) {
-	filepath <- file.path(output_dir, paste0(prefix, "_pca.pdf"))
-	print(dim(sample_gpa))
-	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)	
-	plot_pca(filepath, pca, groups, xcomp, ycomp)
+pca <- function(output_dir, prefix, sample_gpa, groups, params) {
+	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)
+	plot_pca(output_dir, pca, groups, params)
 
 	# store loadings
 	write.table(t(pca$rotation), file.path(output_dir, paste0(prefix, "_pca_loadings.csv")), row.names=FALSE, col.names=FALSE, sep=";")
 
 	# store pca scores
 	write.table(pca$x, file.path(output_dir, paste0(prefix, "_pca_scores.csv")), row.names=FALSE, col.names=FALSE, sep=";")
-	
+
 	variability <- as.matrix(pca$sdev)^2
 	variability <- variability / sum(variability)
 	return(list(score=pca$x, variability=variability, loadings=pca$rotation))
@@ -152,20 +153,25 @@ eval_hotelling <- function(output_dir, data, groups, nperm) {
 		data1 <- data[groups$V1==unique_groups[pairs[i,]$Var1],]
 		data2 <- data[groups$V1==unique_groups[pairs[i,]$Var2],]
 		testResult <- hotelling.test(data1, data2, perm=(nperm>0), B=nperm, progBar=FALSE)
-		pvals[pairs[i,]$Var1, pairs[i,]$Var2] <- testResult$pval 
+		pvals[pairs[i,]$Var1, pairs[i,]$Var2] <- testResult$pval
 	}
 	write.csv(pvals, file.path(output_dir, "hotelling_pvals.csv"))
 }
 
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
-	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, 1, 2)
+	pca95 <- list(xcomp=1, ycomp=2, level=0.95, filename=paste0(sample, "_95", "_pca.pdf"))
+	pca85 <- list(xcomp=1, ycomp=2, level=0.85, filename=paste0(sample, "_85", "_pca.pdf"))
+	pca70 <- list(xcomp=1, ycomp=2, level=0.70, filename=paste0(sample, "_70", "_pca.pdf"))
+	pca55 <- list(xcomp=1, ycomp=2, level=0.55, filename=paste0(sample, "_55", "_pca.pdf"))
+
+	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, list(pca95, pca85, pca70, pca55))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
-	
-	# manova 
+
+	# manova
 	eval_manova(output_dir, "", sample_data, sample_groups)
-	
+
 	# paired hotelling
 	eval_hotelling(output_dir, sample_data, sample_groups, 10000)
 }
@@ -174,18 +180,18 @@ mean_curves <- function(sample_gpa, sample_groups) {
 	unique_groups <- as.character(unique(sample_groups$V1))
 	groups_count <- length(unique_groups)
 	means <- matrix(ncol = dim(sample_gpa)[2], nrow = groups_count + 1)
-	
+
 	# group means
 	for (i in 1:groups_count) {
 		group_data <- sample_gpa[sample_groups==unique_groups[i],]
 		group_mean <- colMeans(group_data)
 		means[i,] = group_mean
 	}
-	
+
 	# all mean
 	means[groups_count + 1,] = colMeans(sample_gpa)
 	unique_groups = c(unique_groups, "all")
-	
+
 	return(list(means=means, names=unique_groups))
 }
 
@@ -197,15 +203,15 @@ store_named_curves <- function(curves, names, prefix, output_dir) {
 curves_variability_analysis <- function(output_dir, sample) {
 	sample_data <- load_curves(sample, output_dir)
 	sample_groups <- load_groups(sample, output_dir)
-	
+
 	#
 	sample_gpa <- transform_pkn_to_bigtable(gpagen(sample_data, print.progress=FALSE)$coords)
 	store_gpa(sample_gpa, sample, output_dir)
-	
+
 	#
 	means <- mean_curves(sample_gpa, sample_groups)
 	store_named_curves(means$means, means$names, 'means', output_dir)
-	
+
 	#
 	statistics(output_dir, sample, sample_gpa, sample_groups)
 }
@@ -219,7 +225,7 @@ curves_variance <- function(curves) {
 	for (c in 1:curves_count) {
 		shifted_curve <- curves[c,] - mean_curve
 		err <- sum(shifted_curve^2)
-		# coordinates variance 
+		# coordinates variance
 		err_sum <- err_sum + err / curves_dim[2]
 	}
 	# mean error
@@ -241,21 +247,21 @@ sl_standard_deviation <- function(curves) {
 }
 
 mean_sl_standard_deviation <- function(curves) {
-	return(mean(sl_standard_deviation(curves)))	
+	return(mean(sl_standard_deviation(curves)))
 }
 
 error_plot <- function (output_dir, prefix, errors) {
 	filepath <- file.path(output_dir, paste0(prefix, "_error.pdf"))
 	pdf(filepath)
 	print(errors)
-	plot(errors, type = "o")	
-	dev.off()	
+	plot(errors, type = "o")
+	dev.off()
 }
 
 curves_group_error <- function(output_dir, curves, groups) {
 	unique_groups <- as.character(unique(groups$V1))
 	cat("Unique groups: \n")
-	print(unique_groups)	
+	print(unique_groups)
 	groups_count <- length(unique_groups)
 	group_error <- rep(0, groups_count)
 	sl_count = dim(curves)[2] / 3
@@ -271,7 +277,7 @@ curves_group_error <- function(output_dir, curves, groups) {
 	}
 	error_plot(output_dir, paste0("sl", sl_count), colMeans(sl_error))
 	mean_group_error <- mean(group_error)
-	cat(paste0("Mean group error: ", mean_group_error, "\n")) 
+	cat(paste0("Mean group error: ", mean_group_error, "\n"))
 	return(mean_group_error)
 }
 
@@ -279,26 +285,26 @@ io_error_analysis <- function(output_dir) {
 	io_error_sample_data <- load_curves("io_error", output_dir)
 	cat("Input data dimension (lm x dim x specimens): \n")
 	print(dim(io_error_sample_data))
-	
+
 	slm <- dim(io_error_sample_data)[1]
-	io_error_sample_groups <- load_groups("io_error")	
+	io_error_sample_groups <- load_groups("io_error")
 	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data, print.progress=FALSE)$coords)
 	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups)
 	io_error_error <- mean_sl_standard_deviation(io_error_sample_gpa)
-	
+
 	# dump
 	cat("ratio - how large is variance of sample in comparison to variance inside the groups\n")
 	cat(paste0(" io_error_mean_group_error = ", io_error_mean_group_error, "\n",
 					" io_error_error = ", io_error_error, "\n",
 					" io_error_mean_group_error / io_error_error = ", io_error_mean_group_error / io_error_error, "\n"))
-	
+
 	# pca and manova on repeated measures
 	prefix <- paste0('measurement_error', slm)
-	pca_results <- pca(output_dir, prefix, io_error_sample_gpa, io_error_sample_groups, 1, 2)
+	pca_results <- pca(output_dir, prefix, io_error_sample_gpa, io_error_sample_groups, list(list(xcomp=1, ycomp=2)))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
 	eval_manova(output_dir, prefix, sample_data, io_error_sample_groups)
-	
+
 	result <- list(io_error_mean_group_error=io_error_mean_group_error,
 			io_error_error=io_error_error,
 			ration=io_error_mean_group_error/io_error_error)
@@ -311,7 +317,7 @@ option_list = list(
 		make_option(c("--output"), default=""),
 		make_option(c("--io_error"), action="store_true", default=FALSE),
 		make_option(c("--variability"), action="store_true", default=FALSE)
-); 
+);
 
 opt = parse_args(OptionParser(option_list=option_list))
 if (opt$io_error) {
@@ -321,6 +327,3 @@ if (opt$io_error) {
 	cat("VARIABILITY\n")
 	curves_variability_analysis(opt$output, "all")
 }
-
-
-

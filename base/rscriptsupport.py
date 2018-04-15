@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 
+
 class RScripInterface(object):
 
     def __init__(self, output):
@@ -17,7 +18,6 @@ class RScripInterface(object):
         for line in process.stdout:
             print(line.decode('utf-8'), end='')
     
-    
     def write_single_curve(self, category, curve_list):
         logging.info("processing category: " + category)
         with open(os.path.join(self.output, category + '.csv'), 'w') as csvfile:
@@ -27,12 +27,10 @@ class RScripInterface(object):
                 curve_line = list(itertools.chain.from_iterable(curve))
                 spamwriter.writerow([str(num) for num in curve_line])
     
-    
     def curve_files_uptodate(self, prefix='all'):
         if os.path.isfile(os.path.join(self.output, prefix + '_group.csv')) or os.path.isfile(os.path.join(self.output, prefix + '.csv')):
             return False
         return True   
-    
     
     def store_for_r(self, curves, prefix='all'):
         # store separate lists
@@ -51,7 +49,6 @@ class RScripInterface(object):
                     allwriter.writerow([str(num) for num in curve_line])
                     all_groupwriter.writerow([category])
     
-    
     def load_csv(self, filename):
         with open(filename, 'r') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -60,6 +57,16 @@ class RScripInterface(object):
                 landmarks.append(row)
             return landmarks
     
+    def write_csv(self, filename, groups):
+        filename_path = os.path.join(self.output, filename + '.csv')
+        ofile = open(filename_path, "w")
+        writer = csv.writer(ofile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        order = 1
+        for group_name, group in groups.items():
+            for row in group:
+                writer.writerow([order, group_name] + (row if isinstance(row, list) else [row]))
+                order = order + 1
+        ofile.close()
     
     def load_from_r(self, filename, dim=3):
         retval = {}

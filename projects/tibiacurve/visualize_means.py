@@ -4,8 +4,6 @@ import os
 
 from projects.tibiacurve import common  
 
-#MEANS_OUTPUT_BY_SLM_DIR = '/home/vajicek/DB/TIBIA/CURVATURE/results/means/sm%02d'
-#DATA_BY_SLM_DIR = '/home/vajicek/DB/TIBIA/CURVATURE/results/data/sm%02d'
 MEANS_OUTPUT_BY_SLM_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/means/sm%02d'
 DATA_BY_SLM_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/data/sm%02d'
 MEANS_OUTPUT_LOG = 'output.txt'
@@ -19,7 +17,6 @@ def get_vis_opts(output_dir, radius, diffs):
         filename = os.path.join(output_dir, 'all_specimen')
     return dict(
         camera=common.get_camera_vertical(), res=(512 + 320, 4 * 1024),
-        # camera=common.get_camera_horizontal(), res=(4 * 1024, 512),
         colors=common.GROUP_COLORS_MAP,
         default_color=(1, 0, 0),
         radius=radius,
@@ -44,6 +41,11 @@ def generate_means_visualization(input_dir, output_dir, log_file):
     # subsequent means diffs
     for i in range(6):
         curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[i, i + 1]]))
+
+    # 0-3, 3-7, 0-7
+    curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[0, 3]]))
+    curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[3, 6]]))
+    curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[0, 6]]))
     
 
 def compute_means(slm, output_dir, log_file):

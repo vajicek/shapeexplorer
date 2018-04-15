@@ -4,8 +4,6 @@ import os
 
 from projects.tibiacurve import common  
 
-#LOADINGS_OUTPUT_BY_SLM_DIR = '/home/vajicek/DB/TIBIA/CURVATURE/results/variability/sm%02d'
-#DATA_BY_SLM_DIR = '/home/vajicek/DB/TIBIA/CURVATURE/results/data/sm%02d'
 LOADINGS_OUTPUT_BY_SLM_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/variability/sm%02d'
 DATA_BY_SLM_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/data/sm%02d'
 LOADINGS_OUTPUT_LOG = 'output.txt'
@@ -15,7 +13,6 @@ def get_vis_opts(output_dir, radius, pca_no):
     filename = os.path.join(output_dir, 'pca_' + str(pca_no + 1))
     return dict(
         camera=common.get_camera_vertical(), res=(512 + 256, 4 * 1024),
-        # camera=common.get_camera_horizontal(), res=(4 * 1024, 512),
         colors={ "all": (1, 1, 1) },
         radius=radius,
         pca_no=pca_no,
