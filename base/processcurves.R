@@ -56,8 +56,9 @@ load_groups <- function(sample_group_file, input_dir) {
 	return(groups)
 }
 
-store_gpa <- function(table, sample, input_dir) {
-	filepath <- file.path(input_dir, paste0(sample, "_gpa", ".csv"))
+store_gpa <- function(table, sample, output_dir) {
+	dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+	filepath <- file.path(output_dir, paste0(sample, "_gpa", ".csv"))
 	write.table(table, filepath, row.names = FALSE, col.names = FALSE, sep=';')
 }
 
@@ -100,13 +101,50 @@ plot_pca <- function(output_dir, pca, groups, params) {
 	}
 }
 
-broken_stick_criterium <- function(variability) {
-	cat("Broken stick_criterium: \n")
-	n <- length(variability)
+analyse_lines_param <- function(lines)  {
+	flatten_data <- c()
+	names <- c()
+	ltys <- c()
+	for (line1 in lines) {
+		flatten_data <- cbind(flatten_data, line1$data)
+		names <- append(names, line1$name)
+		ltys <- append(ltys, line1$lty)
+	}
+	return(list(
+		ylim=c(min(flatten_data), max(flatten_data)),
+		names=names,
+		ltys=ltys))
+}
+
+plot_line <- function(output_dir, lines, params) {
+	pdf(file.path(output_dir, params$filename), width=10, height=8)
+	line_params <- analyse_lines_param(lines)
+
+	plot(x=c(), y=c(), type="n",
+		xlim=params$xlim,
+		ylim=line_params$ylim,
+		xlab=params$xlab,
+		ylab=params$ylab)
+	for (line1 in lines) {
+		lines(x=1:length(unlist(line1$data)), y=line1$data, type="l", lty=line1$lty)
+	}
+
+	legend(params$legend_position, legend=line_params$names, lty=line_params$ltys)
+	dev.off()
+}
+
+get_broken_stick_criterium_sequence <- function(n) {
 	broken <- rep(0, times=n)
 	for (i in 1:n) {
 		broken[i] <- 1/n * sum(1/i:n)
 	}
+	return (broken)
+}
+
+broken_stick_criterium <- function(variability) {
+	cat("Broken stick_criterium: \n")
+	n <- length(variability)
+	broken <- get_broken_stick_criterium_sequence(n)
 	index <- which.min(variability>broken) - 1
 	cat(paste0("Number of significant components: ", index, "\n"))
 	cat(paste0("Variation represented by significant components: ", sum(variability[1:index]), "\n"))
@@ -125,10 +163,21 @@ pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 
 	variability <- as.matrix(pca$sdev)^2
 	variability <- variability / sum(variability)
-	
+
+	# plot screeplot
+	n <- length(variability)
+	plot_line(output_dir,
+		list(list(data=100 * variability, lty=1, name="Variability (%)"),
+			list(data=100 * get_broken_stick_criterium_sequence(n), lty=2, name='Broken stick')),
+		list(filename="screeplot.pdf",
+			legend_position="topright",
+			xlab="Component",
+			ylab="Variability (%)",
+			xlim=c(1, n)))
+
 	# store variability
 	write.table(variability, file.path(output_dir, paste0(prefix, "_pca_variability.csv")), row.names=FALSE, col.names=FALSE, sep=";")
-	
+
 	return(list(score=pca$x, variability=variability, loadings=pca$rotation))
 }
 
@@ -209,18 +258,26 @@ store_named_curves <- function(curves, names, prefix, output_dir) {
 get_curve_sliders <- function(sample_data) {
 	lmc <- dim(sample_data)[1]
 	curve_slider <- data.frame(before=1:(lmc-2), slide=2:(lmc-1), after=3:(lmc))
-	return(curve_slider) 
+	return(curve_slider)
 }
 
-curves_variability_analysis <- function(output_dir, sample) {
-	sample_data <- load_curves(sample, output_dir)
-	sample_groups <- load_groups(sample, output_dir)
+curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sample) {
+	sample_data <- load_curves(sample, input_dir)
+	sample_groups <- load_groups(sample, input_dir)
 
 	#
-	curve_sliders <- get_curve_sliders(sample_data)
-	gpa <- gpagen(sample_data, print.progress=FALSE, curves=curve_sliders, ProcD=FALSE)
+	if (slm_handling == "none") {
+		gpa <- gpagen(sample_data, print.progress=FALSE)
+	} else if (slm_handling == "procd") {
+		curve_sliders <- get_curve_sliders(sample_data)
+		gpa <- gpagen(sample_data, print.progress=FALSE, curves=curve_sliders, ProcD=TRUE)
+	} else if (slm_handling == "bende") {
+		curve_sliders <- get_curve_sliders(sample_data)
+		gpa <- gpagen(sample_data, print.progress=FALSE, curves=curve_sliders, ProcD=FALSE)
+	}
 	cat("Peformed GPA\n")
 	print(gpa)
+
 	sample_gpa <- transform_pkn_to_bigtable(gpa$coords)
 	store_gpa(sample_gpa, sample, output_dir)
 
@@ -242,7 +299,7 @@ curves_length_analysis <- function(output_dir) {
 	pdf(file.path(output_dir, "curves_length.pdf"), width=14, height=8)
 	boxplot(length~group,
 			data=data,
-			main="Lengths per group", 
+			main="Lengths per group",
 			xlab="Group",
 			ylab="Length")
 	dev.off()
@@ -251,7 +308,7 @@ curves_length_analysis <- function(output_dir) {
 	cat("ANOVA\n")
 	fit <- aov(length ~ group, data=data)
 	print(summary(fit))
-	
+
 	cat("PAIRED t-Test\n")
 	pairwise.t.test (data$length, data$group, p.adj="none")
 }
@@ -351,12 +408,13 @@ io_error_analysis <- function(output_dir) {
 	return(result)
 }
 
-
 # command-line interface
 option_list = list(
 		make_option(c("--output"), default=""),
+		make_option(c("--input"), default=""),
 		make_option(c("--io_error"), action="store_true", default=FALSE),
 		make_option(c("--variability"), action="store_true", default=FALSE),
+		make_option(c("--slm_handling"), action="store", default="none", help="none, procd, bende"),
 		make_option(c("--length_analysis"), action="store_true", default=FALSE)
 );
 
@@ -366,7 +424,7 @@ if (opt$io_error) {
 	res <- io_error_analysis(opt$output)
 } else if (opt$variability) {
 	cat("VARIABILITY\n")
-	curves_variability_analysis(opt$output, "all")
+	curves_variability_analysis(opt$input, opt$output, opt$slm_handling, "all")
 } else if (opt$length_analysis) {
 	cat("CURVE LENGTH ANALYSIS\n")
 	curves_length_analysis(opt$output)
