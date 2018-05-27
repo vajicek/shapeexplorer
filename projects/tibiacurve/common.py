@@ -4,7 +4,7 @@ import sys
 
 from base import processcurves
 
-TARGET_ROOT = "/home/vajicek/DB"
+TARGET_ROOT = "/home/vajicek/Dropbox"
 DATAFOLDER = "/home/vajicek/Dropbox/TIBIA/CURVATURE/Tibie CURVES"
 SUBDIRS = ["A_eneolit", "B_bronz", "C_latén", "D_raný středověk", "E_vrcholný středověk", "F_pachner", "G_angio"]
 IO_ERROR_SUBDIR = "IO error"
