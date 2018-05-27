@@ -125,6 +125,10 @@ pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 
 	variability <- as.matrix(pca$sdev)^2
 	variability <- variability / sum(variability)
+	
+	# store variability
+	write.table(variability, file.path(output_dir, paste0(prefix, "_pca_variability.csv")), row.names=FALSE, col.names=FALSE, sep=";")
+	
 	return(list(score=pca$x, variability=variability, loadings=pca$rotation))
 }
 
@@ -202,12 +206,22 @@ store_named_curves <- function(curves, names, prefix, output_dir) {
 	write.table(names, file.path(output_dir, paste0(prefix, "_group.csv", sep="")), row.names=FALSE, col.names=FALSE, sep=";")
 }
 
+get_curve_sliders <- function(sample_data) {
+	lmc <- dim(sample_data)[1]
+	curve_slider <- data.frame(before=1:(lmc-2), slide=2:(lmc-1), after=3:(lmc))
+	return(curve_slider) 
+}
+
 curves_variability_analysis <- function(output_dir, sample) {
 	sample_data <- load_curves(sample, output_dir)
 	sample_groups <- load_groups(sample, output_dir)
 
 	#
-	sample_gpa <- transform_pkn_to_bigtable(gpagen(sample_data, print.progress=FALSE)$coords)
+	curve_sliders <- get_curve_sliders(sample_data)
+	gpa <- gpagen(sample_data, print.progress=FALSE, curves=curve_sliders, ProcD=FALSE)
+	cat("Peformed GPA\n")
+	print(gpa)
+	sample_gpa <- transform_pkn_to_bigtable(gpa$coords)
 	store_gpa(sample_gpa, sample, output_dir)
 
 	#

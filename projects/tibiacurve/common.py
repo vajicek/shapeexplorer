@@ -26,7 +26,8 @@ def mkdir_if_not_exist(directory):
 
 def get_processor(output_dir, log_file):
     mkdir_if_not_exist(output_dir)
-    sys.stdout = open(os.path.join(output_dir, log_file), 'w')
+    if log_file: 
+        sys.stdout = open(os.path.join(output_dir, log_file), 'w')
     return processcurves.CurvesProcessor(DATAFOLDER,
                                          SUBDIRS,
                                          IO_ERROR_SUBDIR,
