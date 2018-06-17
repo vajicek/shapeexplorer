@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
+import os
+
 from projects.tibiacurve import common
 from base import rscriptsupport
 
-OUTPUT_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/length_analysis'
+OUTPUT_DIR = os.path.expanduser('~/Dropbox/TIBIA/CURVATURE/results/length_analysis')
 OUTPUT_LOG = 'output.txt'
 
 

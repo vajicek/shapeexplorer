@@ -2,10 +2,10 @@
 
 import os
 
-from projects.tibiacurve import common  
+from projects.tibiacurve import common
 
-LOADINGS_OUTPUT_BY_SLM_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/variability/sm%02d'
-DATA_BY_SLM_DIR = '/home/vajicek/Dropbox/TIBIA/CURVATURE/results/data/sm%02d'
+LOADINGS_OUTPUT_BY_SLM_DIR = os.path.expanduser('~/Dropbox/TIBIA/CURVATURE/results/variability/sm%02d')
+DATA_BY_SLM_DIR = os.path.expanduser('~/Dropbox/TIBIA/CURVATURE/results/data/sm%02d')
 LOADINGS_OUTPUT_LOG = 'output.txt'
 
 
@@ -21,13 +21,13 @@ def get_vis_opts(output_dir, radius, pca_no):
         filename=[filename + '_frontal.png', filename + '_medial.png']
         )
 
-    
+
 def generate_loading_visualization(input_dir, output_dir, log_file):
     curves_processor = common.get_processor(input_dir, log_file)
     common.mkdir_if_not_exist(output_dir)
     for i in range(6):
         curves_processor.visualize_loadings(input_dir, output_dir, opts=get_vis_opts(output_dir, [0.03, 0.1], i))
-    
+
 
 def compute_variability(slm, output_dir, log_file):
     curves_processor = common.get_processor(output_dir, log_file)

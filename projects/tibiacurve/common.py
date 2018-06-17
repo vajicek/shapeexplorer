@@ -4,18 +4,18 @@ import sys
 
 from base import processcurves
 
-DATAFOLDER = "/home/vajicek/Dropbox/TIBIA/CURVATURE/Tibie CURVES"
-SUBDIRS = ["A_eneolit", "B_bronz", "C_latén", "D_raný středověk", "E_vrcholný středověk", "F_pachner", "G_angio"]
-IO_ERROR_SUBDIR = "IO error"
+DATAFOLDER = os.path.expanduser('~/Dropbox/TIBIA/CURVATURE/Tibie CURVES')
+SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk', 'E_vrcholný středověk', 'F_pachner', 'G_angio']
+IO_ERROR_SUBDIR = 'IO error'
 OUTPUT = 'output'
-GROUP_COLORS_MAP = {"A_eneolit": (1, 0, 0),
-               "B_bronz": (0, 1, 0),
-               "C_latén": (0, 0, 1),
-               "D_raný středověk": (1, 1, 0),
-               "E_vrcholný středověk": (1, 0, 1),
-               "F_pachner": (0, 1, 1),
-               "G_angio": (0, 0, 0),
-               "all": (1, 1, 1)
+GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),
+               'B_bronz': (0, 1, 0),
+               'C_latén': (0, 0, 1),
+               'D_raný středověk': (1, 1, 0),
+               'E_vrcholný středověk': (1, 0, 1),
+               'F_pachner': (0, 1, 1),
+               'G_angio': (0, 0, 0),
+               'all': (1, 1, 1)
                }
 
 
@@ -26,7 +26,7 @@ def mkdir_if_not_exist(directory):
 
 def get_processor(output_dir, log_file):
     mkdir_if_not_exist(output_dir)
-    if log_file: 
+    if log_file:
         sys.stdout = open(os.path.join(output_dir, log_file), 'w')
     return processcurves.CurvesProcessor(DATAFOLDER,
                                          SUBDIRS,
