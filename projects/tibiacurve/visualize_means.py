@@ -4,8 +4,8 @@ import os
 
 from projects.tibiacurve import common
 
-MEANS_OUTPUT_BY_SLM_DIR = os.path.expanduser('~/Dropbox/TIBIA/CURVATURE/results/means/sm%02d')
-DATA_BY_SLM_DIR = os.path.expanduser('~/Dropbox/TIBIA/CURVATURE/results/data/sm%02d')
+MEANS_OUTPUT_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, 'TIBIA/CURVATURE/results/means/sm%02d')
+DATA_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, 'TIBIA/CURVATURE/results/data/sm%02d')
 MEANS_OUTPUT_LOG = 'output.txt'
 
 
@@ -48,13 +48,16 @@ def generate_means_visualization(input_dir, output_dir, log_file):
     curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[0, 6]]))
 
 
-def compute_means(slm, output_dir, log_file):
+def compute_means(slm, output_dir, log_file, slm_handling):
     curves_processor = common.get_processor(output_dir, log_file)
     curves_processor.preprocess_curves(slm, True)
-    curves_processor.analyze_variability(output_dir)
+    curves_processor.analyze_variability(output_dir, output_dir, slm_handling=slm_handling)
 
 
 # different scale for different
 for slm in [10, 20, 30]:
-    compute_means(slm, DATA_BY_SLM_DIR % slm, MEANS_OUTPUT_LOG)
-    generate_means_visualization(DATA_BY_SLM_DIR % slm, MEANS_OUTPUT_BY_SLM_DIR % slm, MEANS_OUTPUT_LOG)
+    for slm_handling in ["none", "procd", "bende"]:
+        output_slm_dir = (DATA_BY_SLM_DIR % slm) + "_" + slm_handling
+        means_output_dir = (MEANS_OUTPUT_BY_SLM_DIR % slm) + "_" + slm_handling
+        compute_means(slm, output_slm_dir, MEANS_OUTPUT_LOG, slm_handling)
+        generate_means_visualization(output_slm_dir, means_output_dir, MEANS_OUTPUT_LOG)

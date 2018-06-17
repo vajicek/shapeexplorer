@@ -32,14 +32,14 @@ class CurvesProcessor(object):
         self.riface.call_r('base/processcurves.R', ['--length_analysis', "--output", output_dir])
         pass
 
-    def analyze_variability(self, output_dir):
+    def analyze_variability(self, input_dir, output_dir, slm_handling='none'):
         """ Analyze variability of the sample pre-processed to given output."""
-        self.riface.call_r('base/processcurves.R', ['--variability', "--output", output_dir])
-    
+        self.riface.call_r('base/processcurves.R', ['--variability', "--input", input_dir, "--output", output_dir, "--slm_handling", slm_handling])
+
     def analyze_io_error(self, output_dir):
         """ Analyze io error via R."""
         self.riface.call_r('base/processcurves.R', ['--io_error', "--output", output_dir])
-    
+
     def visualize_all(self, input_dir, output_dir):
         """ Visualize all curves."""
         data = self.riface.load_from_r(os.path.join(input_dir, "all_gpa.csv"))
@@ -47,7 +47,7 @@ class CurvesProcessor(object):
         for i in range(len(data[""])):
             tmpdata = {"": data[""][0:(i + 1)]}
             self._show_curves(tmpdata, os.path.join(output_dir, "filename%04d_%s.png" % (i, groups[i][0])))
-   
+
     def visualize_means(self, input_dir, prefix='means', opts=None):
         """ Visualize means."""
         means = self.riface.load_from_r(os.path.join(input_dir, prefix + ".csv"))
@@ -72,11 +72,11 @@ class CurvesProcessor(object):
         """ Visualize curve variability loadings."""
         means = self.riface.load_from_r(os.path.join(input_dir, prefix + ".csv"))
         groups = self.riface.load_csv(os.path.join(input_dir, prefix + "_group.csv"))
-        loadings = self.riface.load_from_r(os.path.join(input_dir, "all_pca_loadings.csv"))       
+        loadings = self.riface.load_from_r(os.path.join(input_dir, "all_pca_loadings.csv"))
         opts['values'] = self._curve_dist(loadings[""][opts['pca_no']])
-        opts['other'] = self._vectorize_loadings(means[""][7], loadings[""][opts['pca_no']])        
+        opts['other'] = self._vectorize_loadings(means[""][7], loadings[""][opts['pca_no']])
         self._show_curves({ groups[7][0] : [means[""][7]]}, opts=opts)
-    
+
     def preprocess_curves(self, semilandmarks, force=False):
         """ Preprocess curves and store to files for R."""
         if self.riface.curve_files_uptodate() or force:
@@ -85,7 +85,7 @@ class CurvesProcessor(object):
             self.riface.write_csv('names', names)
         if self.riface.curve_files_uptodate('io_error') or force:
             self.riface.store_for_r(self._load_io_error_curves(semilandmarks), prefix='io_error')
-    
+
     def load_all_curves(self, semilandmarks):
         """Load curves by groups and optionally """
         curves = {}
@@ -93,7 +93,7 @@ class CurvesProcessor(object):
         for subdir in self.subdirs:
             curves = self._load_curves_in_dir(subdir, curves, names, semilandmarks)
         return curves, names
-    
+
     def measure_length(self, curves):
         curve_lengths = {}
         for group_name, group_curves in curves.items():
@@ -102,7 +102,7 @@ class CurvesProcessor(object):
                 curve_len = subdivcurve.curve_length(curve)
                 curve_lengths[group_name].append(curve_len)
         return curve_lengths
-    
+
     def _vectorize_loadings(self, mean, loadings):
         loaded_mean = copy.deepcopy(mean)
         for lm, lm_loadings in zip(loaded_mean, loadings):
@@ -110,7 +110,7 @@ class CurvesProcessor(object):
             lm[1] += lm_loadings[1]
             lm[2] += lm_loadings[2]
         return loaded_mean
-    
+
     def _load_curves_in_dir(self, subdir, curves, names, semilandmarks):
         subdir_abs = os.path.join(self.datafolder, subdir)
         curves[subdir] = []
@@ -131,14 +131,14 @@ class CurvesProcessor(object):
         for curve_file in glob.glob(subdir_abs + '/*.asc'):
             logging.info(curve_file)
             m = re.search(".*\/(.*)\ (\d+)\..*$", curve_file)
-            if m:      
+            if m:
                 specimen_name = m.groups()[0]
                 curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
                 if specimen_name not in curves:
                     curves[specimen_name] = []
                 curves[specimen_name].append(curve)
-        return curves   
-    
+        return curves
+
     def _show_curves(self, data, filename=None, radius=0.001, res=(1024, 1024), opts=dict()):
         if 'filename' in opts and type(opts['filename']) is list:
             camera_settings = opts['camera']
@@ -178,19 +178,19 @@ class CurvesProcessor(object):
                 if 'curve' in opts and opts['curve']:
                     vdata += [dict(dat=sampledata.curve(curve, radius), col=color)]
                 elif 'values' in opts:
-                    if 'balls' not in opts or opts['balls']: 
+                    if 'balls' not in opts or opts['balls']:
                         vdata += sampledata.create_balls(curve, radius, color=color, values=opts['values'])
                 else:
                     vdata += sampledata.create_balls(curve, radius, color=color)
 
-                if 'other' in opts:                    
+                if 'other' in opts:
                     other_points = self._normalize(opts['other'], normalization_factor)
                     vdata += sampledata.create_arrows(curve, arrows_scaling, color=color, other_points=other_points)
 
         if 'gizmo' in opts:
             vdata += [dict(dat=sampledata.cube_gizmo_data(), col=(0, 1, 0))]
 
-        # 
+        #
         v = viewer.Viewer(vdata, size=res)
         v.filename = filename
         if 'camera' in opts:
