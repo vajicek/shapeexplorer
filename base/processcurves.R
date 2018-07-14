@@ -330,7 +330,7 @@ curves_variance <- function(curves) {
 }
 
 # according to von Cramon
-sl_standard_deviation <- function(curves) {
+sl_standard_deviation <- function(curves, coord_dim=3) {
 	curves_dim <- dim(curves)
 	curves_count <- curves_dim[1]
 	mean_curve <- colMeans(curves)
@@ -339,12 +339,12 @@ sl_standard_deviation <- function(curves) {
 		shifted_curve <- curves[c,] - mean_curve
 		err_sum <- err_sum + shifted_curve^2
 	}
-	slm_std_dev = sqrt(colSums(array(err_sum, dim=c(3, curves_dim[2] / 3))) / (3 * curves_count))
+	slm_std_dev = sqrt(colSums(array(err_sum, dim=c(coord_dim, curves_dim[2] / coord_dim))) / (coord_dim * curves_count))
 	return(slm_std_dev)
 }
 
-mean_sl_standard_deviation <- function(curves) {
-	return(mean(sl_standard_deviation(curves)))
+mean_sl_standard_deviation <- function(curves, curves_dim=3) {
+	return(mean(sl_standard_deviation(curves, curves_dim)))
 }
 
 error_plot <- function (output_dir, prefix, errors) {
@@ -355,18 +355,18 @@ error_plot <- function (output_dir, prefix, errors) {
 	dev.off()
 }
 
-curves_group_error <- function(output_dir, curves, groups) {
-	unique_groups <- as.character(unique(groups$V1))
+curves_group_error <- function(output_dir, curves, groups, curves_dim=3) {
+	unique_groups <- as.character(unique(groups))
 	cat("Unique groups: \n")
 	print(unique_groups)
 	groups_count <- length(unique_groups)
 	group_error <- rep(0, groups_count)
-	sl_count = dim(curves)[2] / 3
+	sl_count = dim(curves)[2] / curves_dim
 	sl_error <- matrix(0L, ncol = sl_count, nrow = groups_count)
 	for (c in 1:groups_count) {
 		group_curves <-	curves[groups == unique_groups[c],]
-		group_error[c] <- mean_sl_standard_deviation(group_curves)
-		sl_error[c,] <- sl_standard_deviation(group_curves)
+		group_error[c] <- mean_sl_standard_deviation(group_curves, curves_dim)
+		sl_error[c,] <- sl_standard_deviation(group_curves, curves_dim)
 		# dump
 		cat(paste0("Group: size=", sum(groups == unique_groups[c]),
 						" name=", str_pad(unique_groups[c], 20, "right"),
@@ -378,22 +378,27 @@ curves_group_error <- function(output_dir, curves, groups) {
 	return(mean_group_error)
 }
 
-io_error_analysis <- function(output_dir) {
-	io_error_sample_data <- load_curves("io_error", output_dir)
-	cat("Input data dimension (lm x dim x specimens): \n")
-	print(dim(io_error_sample_data))
-
-	slm <- dim(io_error_sample_data)[1]
-	io_error_sample_groups <- load_groups("io_error")
-	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data, print.progress=FALSE)$coords)
-	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups)
-	io_error_error <- mean_sl_standard_deviation(io_error_sample_gpa)
-
+io_error_analysis_report <- function(io_error_mean_group_error, io_error_error) {
 	# dump
 	cat("ratio - how large is variance of sample in comparison to variance inside the groups\n")
 	cat(paste0(" io_error_mean_group_error = ", io_error_mean_group_error, "\n",
 					" io_error_error = ", io_error_error, "\n",
 					" io_error_mean_group_error / io_error_error = ", io_error_mean_group_error / io_error_error, "\n"))
+
+}
+
+io_error_analysis <- function(output_dir, curves_dim=3) {
+	io_error_sample_data <- load_curves("io_error", output_dir)
+	cat("Input data dimension (lm x dim x specimens): \n")
+	print(dim(io_error_sample_data))
+
+	slm <- dim(io_error_sample_data)[1]
+	io_error_sample_groups <- load_groups("io_error")$V1
+	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data, print.progress=FALSE)$coords)
+	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups, curves_dim)
+	io_error_error <- mean_sl_standard_deviation(io_error_sample_gpa, curves_dim)
+
+	io_error_analysis_report(io_error_mean_group_error, io_error_error)
 
 	# pca and manova on repeated measures
 	prefix <- paste0('measurement_error', slm)
