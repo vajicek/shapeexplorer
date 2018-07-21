@@ -5,9 +5,9 @@ import sys
 from base import processcurves
 
 TARGET_ROOT = os.path.expanduser('~/Dropbox')
-DATAFOLDER = os.path.join(TARGET_ROOT, 'TIBIA/CURVATURE/Tibie CURVES')
+DATAFOLDER = os.path.join(TARGET_ROOT, 'TIBIA/CURVATURE/Tibie\ CURVES')
 SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk', 'E_vrcholný středověk', 'F_pachner', 'G_angio']
-IO_ERROR_SUBDIR = 'IO error'
+IO_ERROR_SUBDIR = 'IO\ error'
 OUTPUT = 'output'
 GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),
                'B_bronz': (0, 1, 0),
@@ -23,6 +23,7 @@ GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),
 def mkdir_if_not_exist(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
+    return directory
 
 
 def get_processor(output_dir, log_file):

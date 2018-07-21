@@ -151,7 +151,7 @@ broken_stick_criterium <- function(variability) {
 	return(index)
 }
 
-pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
+compute_pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)
 	plot_pca(output_dir, pca, groups, pca_plot_params)
 
@@ -220,7 +220,7 @@ get_pca_plot_params <- function(filename_prefix) {
 
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
-	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
+	pca_results <- compute_pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
 
@@ -330,19 +330,25 @@ curves_variance <- function(curves) {
 }
 
 # according to von Cramon
+# return individual slm standard deviation for group of curves (number per slm)
 sl_standard_deviation <- function(curves) {
-	curves_dim <- dim(curves)
+	# align set
+	aligned_curves <- transform_pkn_to_bigtable(gpagen(transform_bigtable_to_pkn(curves), print.progress=FALSE)$coords)
+
+	# lms errors from mean lms
+	curves_dim <- dim(aligned_curves)
 	curves_count <- curves_dim[1]
-	mean_curve <- colMeans(curves)
+	mean_curve <- colMeans(aligned_curves)
 	err_sum <- matrix(0L, ncol = curves_dim[2], nrow = 1)
 	for (c in 1:curves_count) {
-		shifted_curve <- curves[c,] - mean_curve
+		shifted_curve <- aligned_curves[c,] - mean_curve
 		err_sum <- err_sum + shifted_curve^2
 	}
 	slm_std_dev = sqrt(colSums(array(err_sum, dim=c(3, curves_dim[2] / 3))) / (3 * curves_count))
 	return(slm_std_dev)
 }
 
+# mean error of semilandmark for curve
 mean_sl_standard_deviation <- function(curves) {
 	return(mean(sl_standard_deviation(curves)))
 }
@@ -378,14 +384,15 @@ curves_group_error <- function(output_dir, curves, groups) {
 	return(mean_group_error)
 }
 
-io_error_analysis <- function(output_dir) {
-	io_error_sample_data <- load_curves("io_error", output_dir)
+io_error_analysis <- function(input_dir, output_dir) {
+	io_error_sample_data <- load_curves("io_error", input_dir)
 	cat("Input data dimension (lm x dim x specimens): \n")
 	print(dim(io_error_sample_data))
 
 	slm <- dim(io_error_sample_data)[1]
-	io_error_sample_groups <- load_groups("io_error")
+	io_error_sample_groups <- load_groups("io_error", input_dir)
 	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data, print.progress=FALSE)$coords)
+
 	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups)
 	io_error_error <- mean_sl_standard_deviation(io_error_sample_gpa)
 
@@ -394,10 +401,14 @@ io_error_analysis <- function(output_dir) {
 	cat(paste0(" io_error_mean_group_error = ", io_error_mean_group_error, "\n",
 					" io_error_error = ", io_error_error, "\n",
 					" io_error_mean_group_error / io_error_error = ", io_error_mean_group_error / io_error_error, "\n"))
+  cat("coeficient of reliability (0 - error, 1 - no error)\n")
+	cat(paste0(" coeficient of reliability = \n",
+					" 1 - io_error_mean_group_error^2 / io_error_error^2 = ",
+					1 - io_error_mean_group_error^2 / io_error_error^2, "\n"))
 
 	# pca and manova on repeated measures
 	prefix <- paste0('measurement_error', slm)
-	pca_results <- pca(output_dir, prefix, io_error_sample_gpa, io_error_sample_groups, list(list(xcomp=1, ycomp=2)))
+	pca_results <- compute_pca(output_dir, prefix, io_error_sample_gpa, io_error_sample_groups, get_pca_plot_params(prefix))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
 	eval_manova(output_dir, prefix, sample_data, io_error_sample_groups)
@@ -421,7 +432,7 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 if (opt$io_error) {
 	cat("EVALUATE IO ERROR\n")
-	res <- io_error_analysis(opt$output)
+	res <- io_error_analysis(opt$input, opt$output)
 } else if (opt$variability) {
 	cat("VARIABILITY\n")
 	curves_variability_analysis(opt$input, opt$output, opt$slm_handling, "all")

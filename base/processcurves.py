@@ -14,6 +14,8 @@ from base import subdivcurve
 from base import rscriptsupport
 from base import viewer
 
+def _unslash(path):
+    return path.replace("\\", "")
 
 class CurvesProcessor(object):
     """ Analyze groups of curves. """
@@ -36,9 +38,9 @@ class CurvesProcessor(object):
         """ Analyze variability of the sample pre-processed to given output."""
         self.riface.call_r('base/processcurves.R', ['--variability', "--input", input_dir, "--output", output_dir, "--slm_handling", slm_handling])
 
-    def analyze_io_error(self, output_dir):
+    def analyze_io_error(self, input_dir, output_dir):
         """ Analyze io error via R."""
-        self.riface.call_r('base/processcurves.R', ['--io_error', "--output", output_dir])
+        self.riface.call_r('base/processcurves.R', ['--io_error', "--input", input_dir, "--output", output_dir])
 
     def visualize_all(self, input_dir, output_dir):
         """ Visualize all curves."""
@@ -115,7 +117,7 @@ class CurvesProcessor(object):
         subdir_abs = os.path.join(self.datafolder, subdir)
         curves[subdir] = []
         names[subdir] = []
-        for curve_file in glob.glob(subdir_abs + '/*.asc'):
+        for curve_file in glob.glob(_unslash(subdir_abs) + '/*.asc'):
             logging.info(curve_file)
             if semilandmarks:
                 curve = subdivcurve.subdivide_curve(sampledata.load_polyline_data(curve_file), semilandmarks)
@@ -128,7 +130,7 @@ class CurvesProcessor(object):
     def _load_io_error_curves(self, semilandmarks):
         subdir_abs = os.path.join(self.datafolder, self.io_error_subdir)
         curves = {}
-        for curve_file in glob.glob(subdir_abs + '/*.asc'):
+        for curve_file in glob.glob(_unslash(subdir_abs) + '/*.asc'):
             logging.info(curve_file)
             m = re.search(".*\/(.*)\ (\d+)\..*$", curve_file)
             if m:
