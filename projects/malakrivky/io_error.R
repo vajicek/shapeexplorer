@@ -13,9 +13,9 @@ load_data <- function(filename) {
 }
 
 
-analyze_io_error <- function() {
-
-  curve_data <- load_data('bigtable.csv')
+analyze_io_error <- function(input_file, output_dir) {
+  print(output_dir)
+  curve_data <- load_data(input_file)
   sections <- curve_data[,2]
   unique_sections <- unique(sections)
 
@@ -26,10 +26,18 @@ analyze_io_error <- function() {
     groups <- section[,1]
     section_data <- section[, 3:dim(curve_data)[2]]
 
-    io_error_error <- mean_sl_standard_deviation(section_data, 2)
-    io_error_mean_group_error <- curves_group_error('/home/vajicek/src/shapeexplorer', section_data, groups, 2)
+    io_error_mean_group_error <- curves_group_error(output_dir, section_data, groups, 2, section_name, FALSE)
+    io_error_error <- mean_sl_standard_deviation(section_data, 2, FALSE)
     io_error_analysis_report(io_error_mean_group_error, io_error_error)
+    io_error_manova(section_name, output_dir, section_data, groups)
   }
 }
 
-analyze_io_error()
+# command-line interface
+option_list = list(
+  make_option(c("--output"), default="", action="store"),
+  make_option(c("--input"), default="", action="store")
+);
+
+opt = parse_args(OptionParser(option_list=option_list))
+analyze_io_error(opt$input, opt$output)

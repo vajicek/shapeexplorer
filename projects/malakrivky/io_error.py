@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 
-"""Load data and compute error"""
+"""Load data and compute error."""
 
 import glob
 import os
 import re
+import sys
 
-TARGET_ROOT = os.path.expanduser('~/Dropbox')
-IO_ERROR_INPUT_DIR = os.path.join(
-    TARGET_ROOT,
-    'krivky_mala/clanek/01obrazky pro segmentaci/')
+from base import rscriptsupport
+
+SOURCE_ROOT = os.path.expanduser('~/Dropbox/krivky_mala/clanek/')
+TARGET_ROOT = os.path.expanduser('~/DB/krivky_mala/clanek/')
+TARGET_ROOT = SOURCE_ROOT
+
 IO_ERROR_OUTPUT_DIR = os.path.join(
     os.path.expanduser('~/DB'), 'krivky_mala/clanek/io_error/')
 
@@ -38,11 +41,12 @@ def _ExtractCoordinates(filename):
     return _ParseCoordinates(data_block)
 
 
-def _LoadData(input_dir):
+def _LoadMorpho2DCurveData(input_dir):
     data_dict = dict()
     for filename in glob.glob(input_dir+'/*.txt'):
         print(filename)
-        m = re.match(r".*[_,\/](.*)\_(.*)\_(.*)\_(.*)([0-9]+)\.txt", filename)
+        m = re.match(r".*[_,\/](.*)\_(.*)\_(.*)\_(.*)([0-9]+)(_opr)*\.txt",
+                     filename)
         if m:
             key = m.group(1) + "_" + m.group(2) + "_" + m.group(3)
             name = m.group(4)
@@ -64,6 +68,8 @@ def _Flatten(coords):
 
 
 def _StoreForR(output_file, data_dict):
+    #
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     # key, rep, coords
     with open(output_file, 'w') as file:
         for name, value in data_dict.items():
@@ -73,4 +79,21 @@ def _StoreForR(output_file, data_dict):
                     file.write(",".join([name, key] + flat_coords) + "\n")
 
 
-_StoreForR('bigtable.csv', _LoadData(IO_ERROR_INPUT_DIR))
+def _Analyze(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    sys.stdout = open(os.path.join(output_dir, "results.txt"), 'w')
+    bigtable_file = os.path.join(output_dir, "bigtable.csv")
+    _StoreForR(bigtable_file, _LoadMorpho2DCurveData(input_dir))
+    riface = rscriptsupport.RScripInterface(output_dir)
+    riface.call_r('projects/malakrivky/io_error.R', ["--output",
+                  re.escape(output_dir), "--input", re.escape(bigtable_file)])
+
+
+_Analyze(os.path.join(SOURCE_ROOT,
+                      '02 OPRAVA obrazky pro segmentaci/'),
+         os.path.join(TARGET_ROOT,
+                      'result/02 OPRAVA obrazky pro segmentaci/'))
+_Analyze(os.path.join(SOURCE_ROOT,
+                      '01obrazky pro segmentaci/'),
+         os.path.join(TARGET_ROOT,
+                      'result/01obrazky pro segmentaci/'))

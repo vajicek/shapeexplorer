@@ -18,9 +18,9 @@ use_library("stringr")
 # p - landmarks
 # k - dimenstions
 # n - specimens
-transform_bigtable_to_pkn <- function(curve_data) {
+transform_bigtable_to_pkn <- function(curve_data, coord_dim=3) {
 	n <- dim(curve_data)[1]
-	k <- 3
+	k <- coord_dim
 	p <- dim(curve_data)[2] / k
 	data <- array(dim=c(p, k, n))
 	for (i in 1:n) {
@@ -77,10 +77,10 @@ plot_pca <- function(output_dir, pca, groups, params) {
 	for (param1 in params) {
 		pdf(file.path(output_dir, param1$filename), width=10, height=8)
 		colors <- c('red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'black')
-		unique_groups <- unique(groups)$V1
+		unique_groups <- unique(groups)
 		groups_count <- length(unique_groups)
 		group_cols <- colors[1:groups_count]
-		spec_cols <- mapvalues(groups$V1, from=unique_groups, to=group_cols)
+		spec_cols <- mapvalues(groups, from=unique_groups, to=group_cols)
 		palette(group_cols)
 		par(xpd = T, mar = par()$mar + c(0,0,0,9))
 		plot(x=pca$x[,param1$xcomp],
@@ -91,7 +91,7 @@ plot_pca <- function(output_dir, pca, groups, params) {
 		legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
 
 		for (group in 1:groups_count) {
-			group_mask <- groups$V1==unique_groups[group]
+			group_mask <- groups==unique_groups[group]
 			x <- pca$x[group_mask, param1$xcomp]
 			y <- pca$x[group_mask, param1$ycomp]
 			plot_pca_ellipse(x=x, y=y, level=param1$level, col=group_cols[group])
@@ -182,13 +182,11 @@ compute_pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params)
 }
 
 eval_manova <- function(output_dir, prefix, dependent_variable, independent_variable) {
-	lmodel <- lm(dependent_variable~., data=independent_variable)
-	fit <- manova(lmodel)
+	fit <- manova(dependent_variable~independent_variable)
 	filename <- file.path(output_dir, paste0(prefix, "manova.txt"))
 	sink(file=filename)
 	for (test in c("Pillai", "Wilks", "Roy", "Hotelling-Lawley")) {
-		s1 <- summary(fit, test=test)
-		print(s1$stats)
+		print(summary(fit, test=test))
 	}
 	sink(file=NULL)
 }
@@ -218,6 +216,10 @@ get_pca_plot_params <- function(filename_prefix) {
 	return(list(pca95, pca85, pca70, pca55))
 }
 
+# output_dir - directory
+# sample - string, filename prefix
+# sample_gpa - landmarks
+# sample_groups - groups
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
 	pca_results <- compute_pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
@@ -329,11 +331,7 @@ curves_variance <- function(curves) {
 	return(err_sum / curves_count)
 }
 
-# according to von Cramon
-sl_standard_deviation <- function(curves, coord_dim=3) {
-	# align set
-	aligned_curves <- transform_pkn_to_bigtable(gpagen(transform_bigtable_to_pkn(curves), print.progress=FALSE)$coords)
-
+aligned_sl_standard_deviation <- function(aligned_curves, coord_dim=3) {
 	# lms errors from mean lms
 	curves_dim <- dim(aligned_curves)
 	curves_count <- curves_dim[1]
@@ -347,19 +345,81 @@ sl_standard_deviation <- function(curves, coord_dim=3) {
 	return(slm_std_dev)
 }
 
-mean_sl_standard_deviation <- function(curves, curves_dim=3) {
-	return(mean(sl_standard_deviation(curves, curves_dim)))
+# according to von Cramon
+sl_standard_deviation <- function(curves, coord_dim=3, align=TRUE) {
+	# align set
+	if (align) {
+		aligned_curves <- transform_pkn_to_bigtable(gpagen(transform_bigtable_to_pkn(curves, coord_dim), print.progress=FALSE)$coords)
+	} else {
+		aligned_curves <- curves
+	}
+	return(aligned_sl_standard_deviation(aligned_curves, coord_dim=coord_dim))
+}
+
+mean_sl_standard_deviation <- function(curves, curves_dim=3, align=TRUE) {
+	return(mean(sl_standard_deviation(curves, curves_dim, align)))
 }
 
 error_plot <- function (output_dir, prefix, errors) {
 	filepath <- file.path(output_dir, paste0(prefix, "_error.pdf"))
 	pdf(filepath)
-	print(errors)
 	plot(errors, type = "o")
 	dev.off()
 }
 
-curves_group_error <- function(output_dir, curves, groups, curves_dim=3) {
+odd_elements <- function (line) {
+	return(line[1:dim(line)[2] %% 2 == 1])
+}
+
+even_elements <- function (line) {
+	return(line[1:dim(line)[2] %% 2 == 0])
+}
+
+all_measurements_plot <- function (output_dir, prefix, curves, groups, curves_dim=2) {
+	filepath <- file.path(output_dir, paste0(prefix, "_all.pdf"))
+	pdf(filepath)
+
+	unique_groups <- as.character(unique(groups))
+	groups_count <- length(unique_groups)
+
+	min_x <- Inf
+	max_x <- -Inf
+	min_y <- Inf
+	max_y <- -Inf
+	for (c in 1:groups_count) {
+		group_curves <- curves[groups == unique_groups[c],]
+		group_curves_count <- dim(group_curves)[1]
+		for (l in 1:group_curves_count) {
+			line <- group_curves[l,]
+			x <- odd_elements(line)
+			y <- even_elements(line)
+			min_x <- min(min(x), min_x)
+			max_x <- max(max(x), max_x)
+			min_y <- min(min(y), min_y)
+			max_y <- max(max(y), max_y)
+		}
+	}
+
+	w <- max_x - min_x
+	h <- max_y - min_y
+	e <- 0.05
+	plot(x=c(), y=c(), type="n",
+		xlim=c(min_x - w * e, max_x + w * e),
+		ylim=c(min_y - h * e, max_y + h * e))
+
+	for (c in 1:groups_count) {
+		group_curves <- curves[groups == unique_groups[c],]
+		group_curves_count <- dim(group_curves)[1]
+		for (l in 1:group_curves_count) {
+			line <- group_curves[l,]
+			x <- odd_elements(line)
+			y <- even_elements(line)
+			lines(x=x, y=y, type="l", lty=1, col=c)
+		}
+	}
+}
+
+curves_group_error <- function(output_dir, curves, groups, curves_dim=3, prefix="", align=TRUE) {
 	unique_groups <- as.character(unique(groups))
 	cat("Unique groups: \n")
 	print(unique_groups)
@@ -368,15 +428,16 @@ curves_group_error <- function(output_dir, curves, groups, curves_dim=3) {
 	sl_count = dim(curves)[2] / curves_dim
 	sl_error <- matrix(0L, ncol = sl_count, nrow = groups_count)
 	for (c in 1:groups_count) {
-		group_curves <-	curves[groups == unique_groups[c],]
-		group_error[c] <- mean_sl_standard_deviation(group_curves, curves_dim)
-		sl_error[c,] <- sl_standard_deviation(group_curves, curves_dim)
+		group_curves <- curves[groups == unique_groups[c],]
+		group_error[c] <- mean_sl_standard_deviation(group_curves, curves_dim, align)
+		sl_error[c,] <- sl_standard_deviation(group_curves, curves_dim, align)
 		# dump
 		cat(paste0("Group: size=", sum(groups == unique_groups[c]),
 						" name=", str_pad(unique_groups[c], 20, "right"),
 						" error=", group_error[c], "\n"))
 	}
-	error_plot(output_dir, paste0("sl", sl_count), colMeans(sl_error))
+	error_plot(output_dir, paste0(prefix, "sl", sl_count), colMeans(sl_error))
+	all_measurements_plot(output_dir, paste0(prefix, "sl", sl_count), curves, groups)
 	mean_group_error <- mean(group_error)
 	cat(paste0("Mean group error: ", mean_group_error, "\n"))
 	return(mean_group_error)
@@ -390,7 +451,14 @@ io_error_analysis_report <- function(io_error_mean_group_error, io_error_error) 
 					" io_error_mean_group_error / io_error_error = ", io_error_mean_group_error / io_error_error, "\n"))
 }
 
-io_error_analysis <- function(input_dir, output_dir, curves_dim=3) {
+io_error_manova <- function(prefix, output_dir, sample_data, sample_groups) {
+	pca_results <- compute_pca(output_dir, prefix, sample_data, sample_groups, get_pca_plot_params(prefix))
+	sig_components_count <- broken_stick_criterium(pca_results$variability)
+	reduced_sample_data <- pca_results$score[,1:sig_components_count]
+	eval_manova(output_dir, prefix, reduced_sample_data, sample_groups)
+}
+
+io_error_analysis <- function(input_dir, output_dir, curves_dim=3, prefix="") {
 	io_error_sample_data <- load_curves("io_error", input_dir)
 	cat("Input data dimension (lm x dim x specimens): \n")
 	print(dim(io_error_sample_data))
@@ -398,17 +466,11 @@ io_error_analysis <- function(input_dir, output_dir, curves_dim=3) {
 	slm <- dim(io_error_sample_data)[1]
 	io_error_sample_groups <- load_groups("io_error")$V1
 	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data, print.progress=FALSE)$coords)
-	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups, curves_dim)
+
+	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups, curves_dim, prefix)
 	io_error_error <- mean_sl_standard_deviation(io_error_sample_gpa, curves_dim)
-
 	io_error_analysis_report(io_error_mean_group_error, io_error_error)
-
-	# pca and manova on repeated measures
-	prefix <- paste0('measurement_error', slm)
-	pca_results <- compute_pca(output_dir, prefix, io_error_sample_gpa, io_error_sample_groups, get_pca_plot_params(prefix))
-	sig_components_count <- broken_stick_criterium(pca_results$variability)
-	sample_data <- pca_results$score[,1:sig_components_count]
-	eval_manova(output_dir, prefix, sample_data, io_error_sample_groups)
+	io_error_manova(paste0('measurement_error', slm), output_dir, io_error_sample_gpa, io_error_sample_groups)
 
 	result <- list(io_error_mean_group_error=io_error_mean_group_error,
 			io_error_error=io_error_error,
