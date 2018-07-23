@@ -24,24 +24,33 @@ def _ParseCoordinates(data_block):
         coords.append(coord)
     return coords
 
-
-def _ExtractCoordinates(filename):
-    BEGIN_PATTERN = 'Semilandmarks by arc'
-    END_PATTERN = '##SECTION_END##'
+def _ExtractSectionCoordinates(filename, begin_pattern, end_pattern):
     read_block = False
     data_block = ''
     with open(filename, 'r') as file:
         for line in file:
-            if re.match(BEGIN_PATTERN, line):
+            if re.match(begin_pattern, line):
                 read_block = True
-            elif re.match(END_PATTERN, line) and read_block:
+            elif re.match(end_pattern, line) and read_block:
                 break
             elif read_block:
                 data_block += line
     return _ParseCoordinates(data_block)
 
+def _ExtractSemilandmarksByArcCoordinates(filename):
+    return _ExtractSectionCoordinates(filename,
+                                      'Semilandmarks by arc',
+                                      '##SECTION_END##')
 
-def _LoadMorpho2DCurveData(input_dir):
+
+def _ExtractEndPointCoordinates(filename):
+    return _ExtractSectionCoordinates(filename,
+                                      'Ending points',
+                                      '##SECTION_END##')
+
+
+def _LoadMorpho2DCurveData(input_dir,
+                           method=_ExtractSemilandmarksByArcCoordinates):
     data_dict = dict()
     for filename in glob.glob(input_dir+'/*.txt'):
         print(filename)
@@ -55,7 +64,7 @@ def _LoadMorpho2DCurveData(input_dir):
                 data_dict[name] = {}
             if key not in data_dict[name]:
                 data_dict[name][key] = []
-            coords = _ExtractCoordinates(filename)
+            coords = method(filename)
             data_dict[name][key].append(dict(
                 filename=filename,
                 no=repeat,
@@ -83,7 +92,10 @@ def _Analyze(input_dir, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     sys.stdout = open(os.path.join(output_dir, "results.txt"), 'w')
     bigtable_file = os.path.join(output_dir, "bigtable.csv")
+    endpoints_file = os.path.join(output_dir, "endpoints.csv")
     _StoreForR(bigtable_file, _LoadMorpho2DCurveData(input_dir))
+    _StoreForR(endpoints_file,
+               _LoadMorpho2DCurveData(input_dir, _ExtractEndPointCoordinates))
     riface = rscriptsupport.RScripInterface(output_dir)
     riface.call_r('projects/malakrivky/io_error.R', ["--output",
                   re.escape(output_dir), "--input", re.escape(bigtable_file)])
