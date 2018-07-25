@@ -93,6 +93,7 @@ all_measurements_plot <- function (output_dir, prefix, curves, groups, curves_di
 			lines(x=x, y=y, type="l", lty=1, col=c)
 		}
 	}
+  dev.off()
 }
 
 curves_group_error <- function(output_dir, curves, groups, curves_dim=3, prefix="", align=TRUE) {

@@ -56,13 +56,12 @@ def _LoadMorpho2DCurveData(input_dir,
                            method=_ExtractSemilandmarksByArcCoordinates):
     data_dict = dict()
     for filename in glob.glob(input_dir+'/*.txt'):
-        #print(filename)
-        m = re.match(r".*[_,\/](.*)\_(.*)\_(.*)\_(.*)([0-9]+)(_opr)*\.txt",
+        m = re.match(r".*\/([0-9_]*)([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)([0-9]+)[\_opr.\.txt,\.txt]+",
                      filename)
         if m:
-            key = m.group(1) + "_" + m.group(2) + "_" + m.group(3)
-            name = m.group(4)
-            repeat = int(m.group(5))
+            key = m.group(2) + "_" + m.group(3) + "_" + m.group(4)
+            name = m.group(5)
+            repeat = int(m.group(6))
             if name not in data_dict:
                 data_dict[name] = {}
             if key not in data_dict[name]:
@@ -114,18 +113,13 @@ def _AnalyzeEndpoints(input_dir, output_dir):
 
 
 def _AnalyzeAll():
-    _AnalyzeSmlByArc(os.path.join(SOURCE_ROOT,
-                                  '02 OPRAVA obrazky pro segmentaci/'),
-                     os.path.join(TARGET_ROOT,
-                                  'result/02 OPRAVA obrazky pro segmentaci/'))
-    _AnalyzeEndpoints(os.path.join(SOURCE_ROOT,
-                                   '02 OPRAVA obrazky pro segmentaci/'),
-                      os.path.join(TARGET_ROOT,
-                                   'result/02 OPRAVA obrazky pro segmentaci/'))
-    _AnalyzeSmlByArc(os.path.join(SOURCE_ROOT,
-                                  '01obrazky pro segmentaci/'),
-                     os.path.join(TARGET_ROOT,
-                                  'result/01obrazky pro segmentaci/'))
+    for datasets in ['02 OPRAVA obrazky pro segmentaci',
+                     '01obrazky pro segmentaci',
+                     '03 OPRAVA2 obrazky pro segmentaci']:
+        _AnalyzeSmlByArc(os.path.join(SOURCE_ROOT, datasets),
+                         os.path.join(TARGET_ROOT, 'result', datasets))
+        _AnalyzeEndpoints(os.path.join(SOURCE_ROOT, datasets),
+                          os.path.join(TARGET_ROOT, 'result', datasets))
 
 
 _AnalyzeAll()
