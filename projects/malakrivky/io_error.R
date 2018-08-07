@@ -13,23 +13,22 @@ load_data <- function(filename) {
 }
 
 
-analyze_io_error <- function() {
-
+analyze_io_error <- function(output_dir) {
   curve_data <- load_data('bigtable.csv')
-  sections <- curve_data[,2]
+  sections <- curve_data[, 2]
   unique_sections <- unique(sections)
 
   for (section_name in unique_sections) {
     print(section_name)
-    section <- curve_data[curve_data[,2]==section_name,]
+    section <- curve_data[curve_data[, 2]==section_name,]
 
-    groups <- section[,1]
+    groups <- section[, 1]
     section_data <- section[, 3:dim(curve_data)[2]]
 
-    io_error_error <- mean_sl_standard_deviation(section_data, 2)
-    io_error_mean_group_error <- curves_group_error('/home/vajicek/src/shapeexplorer', section_data, groups, 2)
-    io_error_analysis_report(io_error_mean_group_error, io_error_error)
+    section_output_dir <- file.path(output_dir, section_name)
+    dir.create(section_output_dir, recursive = TRUE)
+    io_error_analysis(groups, section_data, section_output_dir, 2)
   }
 }
 
-analyze_io_error()
+analyze_io_error('/home/vajicek/src/shapeexplorer/result')

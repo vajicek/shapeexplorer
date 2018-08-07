@@ -76,11 +76,14 @@ plot_pca_ellipse <- function(x, y, level=0.95, col='r', lty=1) {
 plot_pca <- function(output_dir, pca, groups, params) {
 	for (param1 in params) {
 		pdf(file.path(output_dir, param1$filename), width=10, height=8)
-		colors <- c('red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'black')
-		unique_groups <- unique(groups)$V1
+		print("Error file")
+		print(output_dir)
+		print(file.path(output_dir, param1$filename))
+		colors <- rep(c('red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'black'), 3)
+		unique_groups <- unique(groups)
 		groups_count <- length(unique_groups)
 		group_cols <- colors[1:groups_count]
-		spec_cols <- mapvalues(groups$V1, from=unique_groups, to=group_cols)
+		spec_cols <- mapvalues(groups, from=unique_groups, to=group_cols)
 		palette(group_cols)
 		par(xpd = T, mar = par()$mar + c(0,0,0,9))
 		plot(x=pca$x[,param1$xcomp],
@@ -91,7 +94,7 @@ plot_pca <- function(output_dir, pca, groups, params) {
 		legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
 
 		for (group in 1:groups_count) {
-			group_mask <- groups$V1==unique_groups[group]
+			group_mask <- groups==unique_groups[group]
 			x <- pca$x[group_mask, param1$xcomp]
 			y <- pca$x[group_mask, param1$ycomp]
 			plot_pca_ellipse(x=x, y=y, level=param1$level, col=group_cols[group])
@@ -151,7 +154,7 @@ broken_stick_criterium <- function(variability) {
 	return(index)
 }
 
-pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
+compute_pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)
 	plot_pca(output_dir, pca, groups, pca_plot_params)
 
@@ -220,7 +223,7 @@ get_pca_plot_params <- function(filename_prefix) {
 
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
-	pca_results <- pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
+	pca_results <- compute_pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
 
@@ -263,7 +266,7 @@ get_curve_sliders <- function(sample_data) {
 
 curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sample) {
 	sample_data <- load_curves(sample, input_dir)
-	sample_groups <- load_groups(sample, input_dir)
+	sample_groups <- load_groups(sample, input_dir)$V1
 
 	#
 	if (slm_handling == "none") {
@@ -387,30 +390,36 @@ io_error_analysis_report <- function(io_error_mean_group_error, io_error_error) 
 
 }
 
-io_error_analysis <- function(output_dir, curves_dim=3) {
-	io_error_sample_data <- load_curves("io_error", output_dir)
-	cat("Input data dimension (lm x dim x specimens): \n")
-	print(dim(io_error_sample_data))
+io_error_analysis <- function(sample_groups, sample_gpa, output_dir, curves_dim=3) {
+	mean_group_error <- curves_group_error(output_dir, sample_gpa, sample_groups, curves_dim)
+	error <- mean_sl_standard_deviation(sample_gpa, curves_dim)
 
-	slm <- dim(io_error_sample_data)[1]
-	io_error_sample_groups <- load_groups("io_error")$V1
-	io_error_sample_gpa <- transform_pkn_to_bigtable(gpagen(io_error_sample_data, print.progress=FALSE)$coords)
-	io_error_mean_group_error <- curves_group_error(output_dir, io_error_sample_gpa, io_error_sample_groups, curves_dim)
-	io_error_error <- mean_sl_standard_deviation(io_error_sample_gpa, curves_dim)
-
-	io_error_analysis_report(io_error_mean_group_error, io_error_error)
+	io_error_analysis_report(mean_group_error, error)
 
 	# pca and manova on repeated measures
+	slm <- dim(sample_gpa)[2] / curves_dim
 	prefix <- paste0('measurement_error', slm)
-	pca_results <- pca(output_dir, prefix, io_error_sample_gpa, io_error_sample_groups, list(list(xcomp=1, ycomp=2)))
+	pca_results <- compute_pca(output_dir, prefix, sample_gpa, sample_groups,
+		list(list(xcomp=1, ycomp=2, level=0.95, filename='measurements_pca.pdf')))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	sample_data <- pca_results$score[,1:sig_components_count]
-	eval_manova(output_dir, prefix, sample_data, io_error_sample_groups)
+	eval_manova(output_dir, prefix, sample_data, sample_groups)
 
-	result <- list(io_error_mean_group_error=io_error_mean_group_error,
-			io_error_error=io_error_error,
-			ration=io_error_mean_group_error/io_error_error)
+	result <- list(io_error_mean_group_error=mean_group_error,
+			io_error_error=error,
+			ration=mean_group_error/error)
 	return(result)
+}
+
+io_error_load_align_analyse <- function(output_dir, curves_dim=3) {
+	sample_data <- load_curves("io_error", output_dir)
+	cat("Input data dimension (lm x dim x specimens): \n")
+	print(dim(sample_data))
+
+	sample_groups <- load_groups("io_error")$V1
+	sample_gpa <- transform_pkn_to_bigtable(gpagen(sample_data, print.progress=FALSE)$coords)
+
+	return(io_error_analysis(sample_groups, sample_gpa, output_dir, curves_dim))
 }
 
 # command-line interface
@@ -426,7 +435,7 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 if (opt$io_error) {
 	cat("EVALUATE IO ERROR\n")
-	res <- io_error_analysis(opt$output)
+	res <- io_error_load_align_analyse(opt$output)
 } else if (opt$variability) {
 	cat("VARIABILITY\n")
 	curves_variability_analysis(opt$input, opt$output, opt$slm_handling, "all")
