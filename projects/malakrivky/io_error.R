@@ -4,7 +4,9 @@
 ###############################################################################
 
 source("base/common.R")
-source("base/processcurves.R")
+source("base/io_error.R")
+
+use_library("optparse")
 
 
 load_data <- function(filename) {
@@ -13,9 +15,10 @@ load_data <- function(filename) {
 }
 
 
-analyze_io_error <- function(output_dir) {
-  curve_data <- load_data('bigtable.csv')
-  sections <- curve_data[, 2]
+analyze_io_error <- function(input_file, output_dir, skip_manova) {
+  print(output_dir)
+  curve_data <- load_data(input_file)
+  sections <- curve_data[,2]
   unique_sections <- unique(sections)
 
   for (section_name in unique_sections) {
@@ -25,10 +28,21 @@ analyze_io_error <- function(output_dir) {
     groups <- section[, 1]
     section_data <- section[, 3:dim(curve_data)[2]]
 
-    section_output_dir <- file.path(output_dir, section_name)
-    dir.create(section_output_dir, recursive = TRUE)
-    io_error_analysis(groups, section_data, section_output_dir, 2)
+    io_error_mean_group_error <- curves_group_error(output_dir, section_data, groups, 2, section_name, FALSE)
+    io_error_error <- mean_sl_standard_deviation(section_data, 2, FALSE)
+    io_error_analysis_report(io_error_mean_group_error, io_error_error)
+    if (!skip_manova) {
+      io_error_manova(section_name, output_dir, section_data, groups)
+    }
   }
 }
 
-analyze_io_error('/home/vajicek/src/shapeexplorer/result')
+# command-line interface
+option_list = list(
+  make_option(c("--skip_manova"), action="store_true", type="logical", default=FALSE),
+  make_option(c("--output"), default="", action="store"),
+  make_option(c("--input"), default="", action="store")
+);
+
+opt = parse_args(OptionParser(option_list=option_list))
+analyze_io_error(opt$input, opt$output, opt$skip_manova)

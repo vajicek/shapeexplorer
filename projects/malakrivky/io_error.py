@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 
-"""Load data and compute error"""
+"""Load data and compute error."""
 
 import glob
 import os
 import re
+import sys
 
-TARGET_ROOT = os.path.expanduser('~/Dropbox')
-IO_ERROR_INPUT_DIR = os.path.join(
-    TARGET_ROOT,
-    'krivky_mala/clanek/01obrazky pro segmentaci/')
+from base import rscriptsupport
+
+SOURCE_ROOT = os.path.expanduser('~/Dropbox/krivky_mala/clanek/')
+TARGET_ROOT = os.path.expanduser('~/DB/krivky_mala/clanek/')
+TARGET_ROOT = SOURCE_ROOT
+
 IO_ERROR_OUTPUT_DIR = os.path.join(
     os.path.expanduser('~/DB'), 'krivky_mala/clanek/io_error/')
 
@@ -22,36 +25,48 @@ def _ParseCoordinates(data_block):
     return coords
 
 
-def _ExtractCoordinates(filename):
-    BEGIN_PATTERN = 'Semilandmarks by arc'
-    END_PATTERN = '##SECTION_END##'
+def _ExtractSectionCoordinates(filename, begin_pattern, end_pattern):
     read_block = False
     data_block = ''
     with open(filename, 'r') as file:
         for line in file:
-            if re.match(BEGIN_PATTERN, line):
+            if re.match(begin_pattern, line):
                 read_block = True
-            elif re.match(END_PATTERN, line) and read_block:
+            elif re.match(end_pattern, line) and read_block:
                 break
             elif read_block:
                 data_block += line
     return _ParseCoordinates(data_block)
 
 
-def _LoadData(input_dir):
+def _ExtractSemilandmarksByArcCoordinates(filename):
+    return _ExtractSectionCoordinates(filename,
+                                      'Semilandmarks by arc',
+                                      '##SECTION_END##')
+
+
+def _ExtractEndPointCoordinates(filename):
+    data = _ExtractSectionCoordinates(filename,
+                                      'Ending points',
+                                      '##SECTION_END##')
+    return [line[1:] for line in data]
+
+
+def _LoadMorpho2DCurveData(input_dir,
+                           method=_ExtractSemilandmarksByArcCoordinates):
     data_dict = dict()
     for filename in glob.glob(input_dir+'/*.txt'):
-        print(filename)
-        m = re.match(r".*[_,\/](.*)\_(.*)\_(.*)\_(.*)([0-9]+)\.txt", filename)
+        m = re.match(r".*\/([0-9_]*)([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)([0-9]+)[\_opr.\.txt,\.txt]+",
+                     filename)
         if m:
-            key = m.group(1) + "_" + m.group(2) + "_" + m.group(3)
-            name = m.group(4)
-            repeat = int(m.group(5))
+            key = m.group(2) + "_" + m.group(3) + "_" + m.group(4)
+            name = m.group(5)
+            repeat = int(m.group(6))
             if name not in data_dict:
                 data_dict[name] = {}
             if key not in data_dict[name]:
                 data_dict[name][key] = []
-            coords = _ExtractCoordinates(filename)
+            coords = method(filename)
             data_dict[name][key].append(dict(
                 filename=filename,
                 no=repeat,
@@ -64,6 +79,8 @@ def _Flatten(coords):
 
 
 def _StoreForR(output_file, data_dict):
+    #
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     # key, rep, coords
     with open(output_file, 'w') as file:
         for name, value in data_dict.items():
@@ -73,4 +90,36 @@ def _StoreForR(output_file, data_dict):
                     file.write(",".join([name, key] + flat_coords) + "\n")
 
 
-_StoreForR('bigtable.csv', _LoadData(IO_ERROR_INPUT_DIR))
+def _AnalyzeSmlByArc(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    sys.stdout = open(os.path.join(output_dir, "results.txt"), 'w')
+    bigtable_file = os.path.join(output_dir, "bigtable.csv")
+    _StoreForR(bigtable_file, _LoadMorpho2DCurveData(input_dir))
+    riface = rscriptsupport.RScripInterface(output_dir)
+    riface.call_r('projects/malakrivky/io_error.R', ["--output",
+                  re.escape(output_dir), "--input", re.escape(bigtable_file)])
+
+
+def _AnalyzeEndpoints(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    sys.stdout = open(os.path.join(output_dir, "endpoints_results.txt"), 'w')
+    endpoints_file = os.path.join(output_dir, "endpoints.csv")
+    _StoreForR(endpoints_file,
+               _LoadMorpho2DCurveData(input_dir, _ExtractEndPointCoordinates))
+    riface = rscriptsupport.RScripInterface(output_dir)
+    riface.call_r('projects/malakrivky/io_error.R', ["--skip_manova",
+                  "--output", re.escape(output_dir), "--input",
+                  re.escape(endpoints_file)])
+
+
+def _AnalyzeAll():
+    for datasets in ['02 OPRAVA obrazky pro segmentaci',
+                     '01obrazky pro segmentaci',
+                     '03 OPRAVA2 obrazky pro segmentaci']:
+        _AnalyzeSmlByArc(os.path.join(SOURCE_ROOT, datasets),
+                         os.path.join(TARGET_ROOT, 'result', datasets))
+        _AnalyzeEndpoints(os.path.join(SOURCE_ROOT, datasets),
+                          os.path.join(TARGET_ROOT, 'result', datasets))
+
+
+_AnalyzeAll()
