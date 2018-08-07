@@ -133,6 +133,12 @@ broken_stick_criterium <- function(variability) {
 	return(index)
 }
 
+compute_variability <- function(pca) {
+	variability <- as.matrix(pca$sdev)^2
+	variability <- variability / sum(variability)
+	return(variability)
+}
+
 compute_pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)
 	plot_pca(output_dir, pca, groups, pca_plot_params)
@@ -143,8 +149,7 @@ compute_pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params)
 	# store pca scores
 	write.table(pca$x, file.path(output_dir, paste0(prefix, "_pca_scores.csv")), row.names=FALSE, col.names=FALSE, sep=";")
 
-	variability <- as.matrix(pca$sdev)^2
-	variability <- variability / sum(variability)
+	variability <- compute_variability(pca)
 
 	# plot screeplot
 	n <- length(variability)
