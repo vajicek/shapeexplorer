@@ -121,5 +121,5 @@ def _AnalyzeAll():
         _AnalyzeEndpoints(os.path.join(SOURCE_ROOT, datasets),
                           os.path.join(TARGET_ROOT, 'result', datasets))
 
-
-_AnalyzeAll()
+if __name__== "__main__":
+    _AnalyzeAll()
