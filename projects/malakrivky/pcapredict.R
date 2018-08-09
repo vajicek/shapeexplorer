@@ -90,8 +90,8 @@ plot_pca_predict <- function(soft, hard, params) {
 }
 
 pca_predict <- function() {
-  soft <- load_data("soft.csv")
-  hard <- load_data("hard.csv")
+  soft <- load_data("data/g_rhi_soft.csv")
+  hard <- load_data("data/g_rhi_hard.csv")
   plot_all_profiles(soft, list(width=10, height=8, filename='soft.pdf', xlim=c(-0.6, 0.6), ylim=c(-0.6, 0.6)))
   plot_all_profiles(hard, list(width=10, height=8, filename='hard.pdf', xlim=c(-0.6, 0.6), ylim=c(-0.6, 0.6)))
   print(dim(soft))

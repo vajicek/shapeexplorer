@@ -11,7 +11,8 @@ from base import rscriptsupport
 from projects.malakrivky import io_error
 
 
-SOURCE_ROOT = os.path.expanduser('~/DB/krivky_mala/clanek/GRAFY/Vstupni data_ xml a jpg a txt/pracovni pro digitalizaci/F_digitalizace krivek2/')
+#SOURCE_ROOT = os.path.expanduser('~/DB/krivky_mala/clanek/GRAFY/Vstupni data_ xml a jpg a txt/pracovni pro digitalizaci/F_digitalizace krivek2/')
+SOURCE_ROOT = os.path.expanduser('./data/g_rhi')
 FILE_PATTERN = r"([A-Za-z\_]+)\_(.+\_.+\_.+)\.txt"
 
 def _GetGroups(input_dir):
@@ -45,7 +46,8 @@ def _StoreForR(output_file, groups, groupname):
     with open(output_file, 'w') as file:
         i = 0
         for data1 in groups[groupname]["data"]:
-            print(i, groups[groupname]["files"][i])
+            if data1[10][1] < 0:
+                print(i, groups[groupname]["files"][i], data1[10][1])
             i = i + 1
             flat_coords = _Flatten(data1)
             file.write(",".join(flat_coords) + "\n")
@@ -56,7 +58,7 @@ def _StoreForR(output_file, groups, groupname):
 #io_error._StoreForR("soft.csv", )
 
 groups = _LoadMorpho2DCurveData(SOURCE_ROOT)
-_StoreForR(os.path.expanduser('./hard.csv'), groups, "g_rhi_hard")
-_StoreForR(os.path.expanduser('./soft.csv'), groups, "g_rhi_soft")
+_StoreForR(os.path.expanduser('./data/g_rhi_hard.csv'), groups, "g_rhi_hard")
+_StoreForR(os.path.expanduser('./data/g_rhi_soft.csv'), groups, "g_rhi_soft")
 #print(groups.keys())
 #_LoadMorpho2DCurveData(SOURCE_ROOT)
