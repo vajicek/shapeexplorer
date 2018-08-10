@@ -47,7 +47,8 @@ def _StoreForR(output_file, groups, groupname):
         i = 0
         for data1 in groups[groupname]["data"]:
             if data1[10][1] < 0:
-                print(i, groups[groupname]["files"][i], data1[10][1])
+                #print(i, groups[groupname]["files"][i], data1[10][1])
+                data1=[[coord[0], -coord[1]] for coord in data1]
             i = i + 1
             flat_coords = _Flatten(data1)
             file.write(",".join(flat_coords) + "\n")
