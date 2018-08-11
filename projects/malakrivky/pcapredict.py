@@ -59,7 +59,7 @@ def _StoreForR(output_file, groups, groupname):
 #io_error._StoreForR("soft.csv", )
 
 groups = _LoadMorpho2DCurveData(SOURCE_ROOT)
-_StoreForR(os.path.expanduser('./data/g_rhi_hard.csv'), groups, "g_rhi_hard")
-_StoreForR(os.path.expanduser('./data/g_rhi_soft.csv'), groups, "g_rhi_soft")
+_StoreForR(os.path.expanduser('./data/koren_nosu_hard.csv'), groups, "g_rhi_hard")
+_StoreForR(os.path.expanduser('./data/koren_nosu_soft.csv'), groups, "g_rhi_soft")
 #print(groups.keys())
 #_LoadMorpho2DCurveData(SOURCE_ROOT)
