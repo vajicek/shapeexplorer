@@ -11,9 +11,12 @@ from base import rscriptsupport
 from projects.malakrivky import io_error
 
 
-#SOURCE_ROOT = os.path.expanduser('~/DB/krivky_mala/clanek/GRAFY/Vstupni data_ xml a jpg a txt/pracovni pro digitalizaci/F_digitalizace krivek2/')
-SOURCE_ROOT = os.path.expanduser('./data/g_rhi')
-FILE_PATTERN = r"([A-Za-z\_]+)\_(.+\_.+\_.+)\.txt"
+#PARTS = ['koren_nosu', 'hrbet_nosu', 'horni_ret', 'dolni_ret']
+PARTS = ['hrbet_nosu']
+DATA_ROOT = os.path.expanduser('./data')
+#FILE_PATTERN = r"([A-Za-z\_]+)\_(.+\_.+\_.+)\.txt"
+FILE_PATTERN = r"([A-Za-z\_]+)\_(.+)\.txt"
+OUTPUT_DIR = '/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/predikce/'
 
 def _GetGroups(input_dir):
     groups = {}
@@ -47,19 +50,25 @@ def _StoreForR(output_file, groups, groupname):
         i = 0
         for data1 in groups[groupname]["data"]:
             if data1[10][1] < 0:
-                #print(i, groups[groupname]["files"][i], data1[10][1])
                 data1=[[coord[0], -coord[1]] for coord in data1]
             i = i + 1
             flat_coords = _Flatten(data1)
             file.write(",".join(flat_coords) + "\n")
 
+def _ProccessWithR(output_dir, part_name):
+    riface = rscriptsupport.RScripInterface(output_dir)
+    riface.call_r('projects/malakrivky/pcapredict.R', [
+        "--output", re.escape(output_dir),
+        "--part", re.escape(part_name)])
 
-#data = io_error._LoadMorpho2DCurveData(SOURCE_ROOT, io_error._ExtractSemilandmarksByArcCoordinates)
-#print(data)
-#io_error._StoreForR("soft.csv", )
+def main():
+    for part_name in PARTS:
+        groups = _LoadMorpho2DCurveData(os.path.join(DATA_ROOT, part_name))
+        hard_key = [name for name in groups.keys() if 'hard' in name][0]
+        soft_key = [name for name in groups.keys() if 'soft' in name][0]
+        _StoreForR(os.path.join(DATA_ROOT, part_name + "_hard.csv"), groups, hard_key)
+        _StoreForR(os.path.join(DATA_ROOT, part_name + "_soft.csv"), groups, soft_key)
+        _ProccessWithR(OUTPUT_DIR, part_name)
 
-groups = _LoadMorpho2DCurveData(SOURCE_ROOT)
-_StoreForR(os.path.expanduser('./data/koren_nosu_hard.csv'), groups, "g_rhi_hard")
-_StoreForR(os.path.expanduser('./data/koren_nosu_soft.csv'), groups, "g_rhi_soft")
-#print(groups.keys())
-#_LoadMorpho2DCurveData(SOURCE_ROOT)
+if __name__ == "__main__":
+    main()

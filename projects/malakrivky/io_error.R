@@ -37,12 +37,16 @@ analyze_io_error <- function(input_file, output_dir, skip_manova) {
   }
 }
 
-# command-line interface
-option_list = list(
-  make_option(c("--skip_manova"), action="store_true", type="logical", default=FALSE),
-  make_option(c("--output"), default="", action="store"),
-  make_option(c("--input"), default="", action="store")
-);
+main <- function() {
+  # command-line interface
+  option_list = list(
+    make_option(c("--skip_manova"), action="store_true", type="logical", default=FALSE),
+    make_option(c("--output"), default="", action="store"),
+    make_option(c("--input"), default="", action="store")
+  );
 
-opt = parse_args(OptionParser(option_list=option_list))
-analyze_io_error(opt$input, opt$output, opt$skip_manova)
+  opt = parse_args(OptionParser(option_list=option_list))
+  analyze_io_error(opt$input, opt$output, opt$skip_manova)
+}
+
+main()

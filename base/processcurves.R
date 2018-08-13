@@ -167,24 +167,30 @@ curves_variance <- function(curves) {
 	return(err_sum / curves_count)
 }
 
-# command-line interface
-option_list = list(
-		make_option(c("--output"), default=""),
-		make_option(c("--input"), default=""),
-		make_option(c("--io_error"), action="store_true", default=FALSE),
-		make_option(c("--variability"), action="store_true", default=FALSE),
-		make_option(c("--slm_handling"), action="store", default="none", help="none, procd, bende"),
-		make_option(c("--length_analysis"), action="store_true", default=FALSE)
-);
+main <- function() {
+	# command-line interface
+	option_list = list(
+			make_option(c("--output"), default=""),
+			make_option(c("--input"), default=""),
+			make_option(c("--io_error"), action="store_true", default=FALSE),
+			make_option(c("--variability"), action="store_true", default=FALSE),
+			make_option(c("--slm_handling"), action="store", default="none", help="none, procd, bende"),
+			make_option(c("--length_analysis"), action="store_true", default=FALSE)
+	);
 
-opt = parse_args(OptionParser(option_list=option_list))
-if (opt$io_error) {
-	cat("EVALUATE IO ERROR\n")
-	res <- io_error_analysis(opt$input, opt$output)
-} else if (opt$variability) {
-	cat("VARIABILITY\n")
-	curves_variability_analysis(opt$input, opt$output, opt$slm_handling, "all")
-} else if (opt$length_analysis) {
-	cat("CURVE LENGTH ANALYSIS\n")
-	curves_length_analysis(opt$output)
+	opt = parse_args(OptionParser(option_list=option_list))
+	if (opt$io_error) {
+		cat("EVALUATE IO ERROR\n")
+		res <- io_error_analysis(opt$input, opt$output)
+	} else if (opt$variability) {
+		cat("VARIABILITY\n")
+		curves_variability_analysis(opt$input, opt$output, opt$slm_handling, "all")
+	} else if (opt$length_analysis) {
+		cat("CURVE LENGTH ANALYSIS\n")
+		curves_length_analysis(opt$output)
+	}
+}
+
+if (sys.nframe() == 0L) {
+	main()
 }

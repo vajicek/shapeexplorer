@@ -134,6 +134,8 @@ plot_pca_predict <- function(soft, hard, params) {
 pca_predict <- function(part, target_dir) {
   soft <- load_data(paste0("data/", part, "_soft.csv"))
   hard <- load_data(paste0("data/", part, "_hard.csv"))
+  print(dim(soft))
+  print(dim(hard))
   plot_all_profiles(soft, list(width=8, height=8, filename='soft.pdf', xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   plot_all_profiles(hard, list(width=8, height=8, filename='hard.pdf', xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   plot_pca_predict(soft, hard, list(part=part, target_dir=target_dir, filename='result.pdf', sdtimes=3.0, plotshift=0.5))
@@ -149,5 +151,15 @@ test_predict <- function(){
   pca_predict('koren_nosu', '/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/predikce/')
 }
 
+main <- function() {
+  # command-line interface
+  option_list = list(
+    make_option(c("--output"), default="", action="store"),
+    make_option(c("--part"), default="", action="store")
+  );
 
-test_predict()
+  opt = parse_args(OptionParser(option_list=option_list))
+  pca_predict(opt$part, opt$output)
+}
+
+main()
