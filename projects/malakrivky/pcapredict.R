@@ -13,7 +13,8 @@ load_data <- function(filename) {
 
 
 compute_pca <- function(data) {
-  pca <- prcomp(data, scale=FALSE, retx=TRUE)
+  pca <- prcomp(data, retx=TRUE)
+  print(sum(pca$sdev))
   variability <- compute_variability(pca)
   significant_count <- broken_stick_criterium(variability)
   return(list(significant_count=significant_count,
@@ -24,8 +25,8 @@ compute_pca <- function(data) {
     mean=colMeans(data)))
 }
 
-pca_shape_predict <- function(pca, score) {
-  coords <- pca$mean + pca$loadings %*% score
+pca_shape_predict <- function(pca, score, scale) {
+  coords <- pca$mean + pca$loadings %*% score * scale
   return(list(coords=coords, score=score))
 }
 
@@ -54,23 +55,25 @@ plot_all_profiles <- function(data, params) {
 
 plot_vector <- function(input, shift, lwd) {
   xy <- matrix(input, nrow=2)
-  lines(xy[1, ], xy[2, ] + shift, type='l', lwd=lwd)
+  lines(xy[2, ] + shift, xy[1, ], type='l', lwd=lwd)
 }
 
 plot_predicted_curves <- function(predictor1, predictor2, predicted1, predicted2, params) {
   pdf(params$filename, width=params$width, height=params$height)
+  par(mar=c(1, 1, 1, 1)*0.5)
   plot(c(), c(), type='n',
     bty="n",
     xaxt='n',
     yaxt='n',
     xlab="",
     ylab="",
-    xlim=c(min(predictor1), max(predictor1)), ylim=c(min(predictor1), max(predictor1)+0.5))
+    xlim=c(params$ylim[1] - 2*params$plotshift, params$ylim[2] + 2*params$plotshift), ylim=params$xlim)
+  print(params$ylim)
   grid(5, 5, lwd = 3)
-  plot_vector(predictor1, 0, 1)
-  plot_vector(predictor2, 0, 2)
-  plot_vector(predicted1, params$plotshift, 1)
-  plot_vector(predicted2, params$plotshift, 2)
+  plot_vector(predictor1, params$plotshift, 1)
+  plot_vector(predictor2, params$plotshift, 2)
+  plot_vector(predicted1, -params$plotshift, 1)
+  plot_vector(predicted2, -params$plotshift, 2)
   dev.off()
 }
 
@@ -111,34 +114,47 @@ plot_pca_predict <- function(soft, hard, params) {
 
     # plus
     hard_pca_score[pca_no] <- sd(pca_hard$score[,pca_no]) * params$sdtimes
-    hard_plus_shape <- pca_shape_predict(pca_hard, hard_pca_score)
+    hard_plus_shape <- pca_shape_predict(pca_hard, hard_pca_score, 1)
     soft_plus_score <- lmr_score_model_predict(mlr_score_model, hard_pca_score)
-    soft_plus_shape <- pca_shape_predict(pca_soft, soft_plus_score)
+    soft_plus_shape <- pca_shape_predict(pca_soft, soft_plus_score, 1)
 
     #minus
     hard_pca_score[pca_no] <- -1 * sd(pca_hard$score[,pca_no]) * params$sdtimes
-    hard_minus_shape <- pca_shape_predict(pca_hard, hard_pca_score)
+    hard_minus_shape <- pca_shape_predict(pca_hard, hard_pca_score, 1)
     soft_minus_score <- lmr_score_model_predict(mlr_score_model, hard_pca_score)
-    soft_minus_shape <- pca_shape_predict(pca_soft, soft_minus_score)
+    soft_minus_shape <- pca_shape_predict(pca_soft, soft_minus_score, 1)
 
     # dual plot
     params$filename <- file.path(params$target_dir, paste0('plot_', params$part, '_pc', toString(pca_no), '.pdf'))
     plot_predicted_curves(hard_minus_shape$coords,
       hard_plus_shape$coords,
-      soft_plus_shape$coords,
       soft_minus_shape$coords,
+      soft_plus_shape$coords,
       params)
   }
+}
+
+get_extents <- function(soft, hard) {
+  soft_xx <- soft[, (1:dim(soft)[2]) %% 2 == 1]
+  soft_yy <- soft[, (1:dim(soft)[2] + 1) %%2 == 1]
+  soft_ext_x <- c(min(soft_xx), max(soft_xx))
+  soft_ext_y <- c(min(soft_yy), max(soft_yy))
+
+  hard_xx <- hard[, (1:dim(hard)[2]) %% 2 == 1]
+  hard_yy <- hard[, (1:dim(hard)[2] + 1) %%2 == 1]
+  hard_ext_x <- c(min(hard_xx), max(hard_xx))
+  hard_ext_y <- c(min(hard_yy), max(hard_yy))
+  #return(list(ylim=c(soft_ext_y[1], hard_ext_y[2]), xlim=c(-0.5, 0.5)))
+  return(list(ylim=c(-0.5, 0.5), xlim=c(-0.5, 0.5)))
 }
 
 pca_predict <- function(part, target_dir) {
   soft <- load_data(paste0("data/", part, "_soft.csv"))
   hard <- load_data(paste0("data/", part, "_hard.csv"))
-  print(dim(soft))
-  print(dim(hard))
-  plot_all_profiles(soft, list(width=8, height=8, filename='soft.pdf', xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
-  plot_all_profiles(hard, list(width=8, height=8, filename='hard.pdf', xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
-  plot_pca_predict(soft, hard, list(part=part, target_dir=target_dir, filename='result.pdf', sdtimes=3.0, plotshift=0.5))
+  plot_all_profiles(soft, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_soft.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
+  plot_all_profiles(hard, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_hard.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
+  exts <- get_extents(hard, soft)
+  plot_pca_predict(soft, hard, list(width=8, height=8, part=part, target_dir=target_dir, filename='result.pdf', sdtimes=3.0, plotshift=0.2, xlim=exts$xlim, ylim=exts$ylim))
 }
 
 test_plot <- function() {

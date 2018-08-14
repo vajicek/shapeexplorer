@@ -11,8 +11,8 @@ from base import rscriptsupport
 from projects.malakrivky import io_error
 
 
-#PARTS = ['koren_nosu', 'hrbet_nosu', 'horni_ret', 'dolni_ret']
-PARTS = ['hrbet_nosu']
+PARTS = ['koren_nosu', 'hrbet_nosu', 'horni_ret', 'dolni_ret']
+#PARTS = ['koren_nosu']
 DATA_ROOT = os.path.expanduser('./data')
 #FILE_PATTERN = r"([A-Za-z\_]+)\_(.+\_.+\_.+)\.txt"
 FILE_PATTERN = r"([A-Za-z\_]+)\_(.+)\.txt"
@@ -25,18 +25,21 @@ def _GetGroups(input_dir):
         m = re.match(FILE_PATTERN, basename)
         if m:
             groupname = m.group(2)
+            name = m.group(1)
             if groupname not in groups:
-                groups[groupname] = dict(count=1, files=[filename])
+                groups[groupname] = dict(count=1, files={name: filename})
             else:
                 groups[groupname]["count"] = groups[groupname]["count"] + 1
-                groups[groupname]["files"].append(filename)
+                groups[groupname]["files"][name] = filename
     return groups
 
 def _LoadMorpho2DCurveData(input_dir):
     groups = _GetGroups(input_dir)
     for groupname in groups.keys():
         groups[groupname]["data"] = []
-        for filename in groups[groupname]["files"]:
+        sorted_names = sorted(groups[groupname]["files"].keys())
+        for name in sorted_names:
+            filename = groups[groupname]["files"][name]
             coords = io_error._ExtractSemilandmarksByArcCoordinates(filename)
             groups[groupname]["data"].append(coords)
     return groups
