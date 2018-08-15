@@ -55,7 +55,7 @@ plot_all_profiles <- function(data, params) {
 
 plot_vector <- function(input, shift, lwd) {
   xy <- matrix(input, nrow=2)
-  lines(xy[2, ] + shift, xy[1, ], type='l', lwd=lwd)
+  lines(xy[2, ] + shift, -xy[1, ], type='l', lwd=lwd)
 }
 
 plot_predicted_curves <- function(predictor1, predictor2, predicted1, predicted2, params) {
