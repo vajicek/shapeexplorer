@@ -11,10 +11,8 @@ load_data <- function(filename) {
   return(curve_data)
 }
 
-
 compute_pca <- function(data) {
   pca <- prcomp(data, retx=TRUE)
-  print(sum(pca$sdev))
   variability <- compute_variability(pca)
   significant_count <- broken_stick_criterium(variability)
   return(list(significant_count=significant_count,
@@ -32,7 +30,7 @@ pca_shape_predict <- function(pca, score, scale) {
 
 compute_mlr <- function(dependent_var, independent_vars) {
   model <- lm(dependent_var~., data.frame(independent_vars))
-  return(list(parameter=matrix(model$coefficients), fit=model))
+  return(list(parameter=matrix(model$coefficients), fit=model, rsq=summary(model)$r.squared))
 }
 
 plot_all_profiles <- function(data, params) {
@@ -59,7 +57,8 @@ plot_vector <- function(input, shift, lwd) {
 }
 
 plot_predicted_curves <- function(predictor1, predictor2, predicted1, predicted2, params) {
-  pdf(params$filename, width=params$width, height=params$height)
+  #pdf(paste0(params$filename, '.pdf'), width=params$width * 0.393701, height=params$height * 0.393701 )
+  png(paste0(params$filename, '.png'), width=params$width, height=params$height, units="cm", res=1200)
   par(mar=c(1, 1, 1, 1)*0.5)
   plot(c(), c(), type='n',
     bty="n",
@@ -67,13 +66,14 @@ plot_predicted_curves <- function(predictor1, predictor2, predicted1, predicted2
     yaxt='n',
     xlab="",
     ylab="",
-    xlim=c(params$ylim[1] - 2*params$plotshift, params$ylim[2] + 2*params$plotshift), ylim=params$xlim)
-  print(params$ylim)
-  grid(5, 5, lwd = 3)
-  plot_vector(predictor1, params$plotshift, 1)
-  plot_vector(predictor2, params$plotshift, 2)
-  plot_vector(predicted1, -params$plotshift, 1)
-  plot_vector(predicted2, -params$plotshift, 2)
+    #xlim=c(params$ylim[1] - 2*params$plotshift, params$ylim[2] + 2 * params$plotshift),
+    xlim=params$xlim,
+    ylim=params$ylim)
+  grid(params$grid[1], params$grid[2], lwd = params$grid[3])
+  plot_vector(predictor1, params$plotshift, 0.5)
+  plot_vector(predictor2, params$plotshift, 1.5)
+  plot_vector(predicted1, -params$plotshift, 0.5)
+  plot_vector(predicted2, -params$plotshift, 1.5)
   dev.off()
 }
 
@@ -88,26 +88,32 @@ lmr_score_predict <- function(param, base) {
 
 lmr_score_model_predict <- function(mlr_score_model, score) {
   predicted_pca_score <- rep(0, mlr_score_model$length)
+  rsq <- c()
   for(pca_i in 1:length(mlr_score_model$score_model)) {
     pca_i_val <- lmr_score_predict(mlr_score_model$score_model[[pca_i]]$parameter, score)
-    rsq <- summary(mlr_score_model$score_model[[pca_i]]$fit)$r.squared
-    #print(rsq)
-    predicted_pca_score[pca_i] <- pca_i_val
-    # * rsq
+    predicted_pca_score[pca_i] <- pca_i_val * mlr_score_model$score_model[[pca_i]]$rsq
   }
-  return(predicted_pca_score)
+  return(list(score=predicted_pca_score))
+}
+
+dump_components_weights <- function(mlr_score_model) {
+  print("Components rsq: ")
+  for (pca_no in  1:mlr_score_model$significant_count) {
+    print(mlr_score_model$score_model[[pca_no]]$rsq)
+  }
 }
 
 plot_pca_predict <- function(soft, hard, params) {
   pca_soft <- compute_pca(soft)
   pca_hard <- compute_pca(hard)
-  mlr_score_model=list(score_model=list(), length=pca_soft$length)
+  mlr_score_model=list(score_model=list(), length=pca_soft$length, significant_count=pca_soft$significant_count)
   for (pca_no in  1:pca_soft$significant_count) {
     mlr_pca_soft_i <- compute_mlr(pca_soft$score[,pca_no], pca_hard$score)
     mlr_score_model$score_model[[pca_no]] <- mlr_pca_soft_i
   }
 
   print("MODEL CREATED....")
+  dump_components_weights(mlr_score_model)
 
   for (pca_no in 1:pca_hard$significant_count) {
     hard_pca_score <- rep(0, pca_hard$length)
@@ -115,17 +121,17 @@ plot_pca_predict <- function(soft, hard, params) {
     # plus
     hard_pca_score[pca_no] <- sd(pca_hard$score[,pca_no]) * params$sdtimes
     hard_plus_shape <- pca_shape_predict(pca_hard, hard_pca_score, 1)
-    soft_plus_score <- lmr_score_model_predict(mlr_score_model, hard_pca_score)
-    soft_plus_shape <- pca_shape_predict(pca_soft, soft_plus_score, 1)
+    soft_plus_prediction <- lmr_score_model_predict(mlr_score_model, hard_pca_score)
+    soft_plus_shape <- pca_shape_predict(pca_soft, soft_plus_prediction$score, 1)
 
     #minus
     hard_pca_score[pca_no] <- -1 * sd(pca_hard$score[,pca_no]) * params$sdtimes
     hard_minus_shape <- pca_shape_predict(pca_hard, hard_pca_score, 1)
-    soft_minus_score <- lmr_score_model_predict(mlr_score_model, hard_pca_score)
-    soft_minus_shape <- pca_shape_predict(pca_soft, soft_minus_score, 1)
+    soft_minus_prediction <- lmr_score_model_predict(mlr_score_model, hard_pca_score)
+    soft_minus_shape <- pca_shape_predict(pca_soft, soft_minus_prediction$score, 1)
 
     # dual plot
-    params$filename <- file.path(params$target_dir, paste0('plot_', params$part, '_pc', toString(pca_no), '.pdf'))
+    params$filename <- file.path(params$target_dir, paste0('plot_', params$part, '_pc', toString(pca_no)))
     plot_predicted_curves(hard_minus_shape$coords,
       hard_plus_shape$coords,
       soft_minus_shape$coords,
@@ -144,8 +150,7 @@ get_extents <- function(soft, hard) {
   hard_yy <- hard[, (1:dim(hard)[2] + 1) %%2 == 1]
   hard_ext_x <- c(min(hard_xx), max(hard_xx))
   hard_ext_y <- c(min(hard_yy), max(hard_yy))
-  #return(list(ylim=c(soft_ext_y[1], hard_ext_y[2]), xlim=c(-0.5, 0.5)))
-  return(list(ylim=c(-0.5, 0.5), xlim=c(-0.5, 0.5)))
+  return(list(ylim=c(-0.3, 0.3), xlim=c(-0.5, 0.5)))
 }
 
 pca_predict <- function(part, target_dir) {
@@ -154,7 +159,17 @@ pca_predict <- function(part, target_dir) {
   plot_all_profiles(soft, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_soft.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   plot_all_profiles(hard, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_hard.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   exts <- get_extents(hard, soft)
-  plot_pca_predict(soft, hard, list(width=8, height=8, part=part, target_dir=target_dir, filename='result.pdf', sdtimes=3.0, plotshift=0.2, xlim=exts$xlim, ylim=exts$ylim))
+  plot_pca_predict(soft, hard, list(
+    width=4.5,
+    height=3.214,
+    part=part,
+    target_dir=target_dir,
+    filename='result.pdf',
+    sdtimes=3.0,
+    plotshift=0.25,
+    xlim=c(-0.7, 0.7),
+    ylim=c(-0.5, 0.5),
+    grid=c(7, 5, 1.0)))
 }
 
 test_plot <- function() {

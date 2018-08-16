@@ -66,6 +66,7 @@ def _ProccessWithR(output_dir, part_name):
         "--part", re.escape(part_name)])
 
 def main():
+    sys.stdout = open(os.path.join(OUTPUT_DIR, "prediction_log.txt"), 'w')
     for part_name in PARTS:
         groups = _LoadMorpho2DCurveData(os.path.join(DATA_ROOT, part_name))
         hard_key = [name for name in groups.keys() if 'hard' in name][0]
