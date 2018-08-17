@@ -134,9 +134,13 @@ dump_components_weights <- function(mlr_score_model) {
 plot_pca_predict <- function(soft, hard, params) {
   pca_soft <- compute_pca(soft)
   pca_hard <- compute_pca(hard)
+
+  write.table(pca_soft$score, file = file.path(params$target_dir, paste0(params$part, '_soft_pca_score.csv')))
+  write.table(pca_hard$score, file = file.path(params$target_dir, paste0(params$part, '_hard_pca_score.csv')))
+
   mlr_score_model=list(score_model=list(), length=pca_soft$length, significant_count=pca_soft$significant_count)
   for (pca_no in  1:pca_soft$significant_count) {
-    mlr_pca_soft_i <- compute_mlr(pca_soft$score[,pca_no], pca_hard$score)
+    mlr_pca_soft_i <- compute_mlr(pca_soft$score[,pca_no], pca_hard$score[,1:pca_hard$significant_count])
     mlr_score_model$score_model[[pca_no]] <- mlr_pca_soft_i
   }
 

@@ -12,7 +12,7 @@ from projects.malakrivky import io_error
 
 
 PARTS = {'koren_nosu': {}, 'hrbet_nosu': {"flipy": True}, 'horni_ret': {"flipy": True}, 'dolni_ret': {"flipy": True}}
-#PARTS = {'dolni_ret': {"flipy": True}}
+#PARTS = {'koren_nosu': {}}
 DATA_ROOT = os.path.expanduser('./data')
 FILE_PATTERN = r"([A-Za-z\_]+)\_(.+)\.txt"
 OUTPUT_DIR = '/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/predikce/'
