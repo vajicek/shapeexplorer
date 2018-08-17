@@ -30,7 +30,7 @@ pca_shape_predict <- function(pca, score, scale) {
 
 compute_mlr <- function(dependent_var, independent_vars) {
   model <- lm(dependent_var~., data.frame(independent_vars))
-  return(list(parameter=matrix(model$coefficients), fit=model, rsq=summary(model)$r.squared))
+  return(list(parameter=matrix(model$coefficients), model=model, rsq=summary(model)$r.squared))
 }
 
 plot_all_profiles <- function(data, params) {
@@ -47,6 +47,27 @@ plot_all_profiles <- function(data, params) {
     x <- data[line_no, (1:dim(data)[2]) %% 2 == 1]
     y <- data[line_no, (1:dim(data)[2] + 1) %%2 == 1]
     lines(x, y, type='l')
+  }
+  dev.off()
+}
+
+plot_all_together <- function(data1, data2, params) {
+  pdf(params$filename, width=params$width, height=params$height)
+  for (line_no in  1:dim(data1)[1]) {
+    plot(c(), c(), type='n',
+      bty="n",
+      xaxt='n',
+      yaxt='n',
+      xlab="",
+      ylab="",
+      xlim=params$xlim, ylim=params$ylim)
+    grid(5, 5, lwd = 3)
+    x1 <- data1[line_no, (1:dim(data1)[2]) %% 2 == 1]
+    y1 <- data1[line_no, (1:dim(data1)[2] + 1) %%2 == 1]
+    x2 <- data2[line_no, (1:dim(data2)[2]) %% 2 == 1]
+    y2 <- data2[line_no, (1:dim(data2)[2] + 1) %%2 == 1]
+    lines(x1, y1, type='l', lwd=1)
+    lines(x2, y2, type='l', lwd=2)
   }
   dev.off()
 }
@@ -77,12 +98,19 @@ plot_predicted_curves <- function(predictor1, predictor2, predicted1, predicted2
   dev.off()
 }
 
-lmr_score_predict <- function(param, base) {
+lmr_score_predict <- function(model, newdata) {
+  newdata <- data.frame(t(matrix(newdata)))
+  names(newdata) <- tail(names(model$coefficients), -1)
+  return(predict(model, newdata))
+}
+
+lmr_score_predict_manual <- function(model, newdata) {
   # corresponds to predict(model, newdata)
+  param <- matrix(model$coefficients)
   b0 <- param[1]
   b1 <- matrix(param[2:dim(param)[1],])
   b1[is.na(b1)] <- 0
-  predicted_val <- b0 + t(b1) %*% matrix(base)
+  predicted_val <- b0 + t(b1) %*% matrix(newdata)
   return(predicted_val)
 }
 
@@ -90,7 +118,7 @@ lmr_score_model_predict <- function(mlr_score_model, score) {
   predicted_pca_score <- rep(0, mlr_score_model$length)
   rsq <- c()
   for(pca_i in 1:length(mlr_score_model$score_model)) {
-    pca_i_val <- lmr_score_predict(mlr_score_model$score_model[[pca_i]]$parameter, score)
+    pca_i_val <- lmr_score_predict(mlr_score_model$score_model[[pca_i]]$model, score)
     predicted_pca_score[pca_i] <- pca_i_val * mlr_score_model$score_model[[pca_i]]$rsq
   }
   return(list(score=predicted_pca_score))
@@ -158,6 +186,14 @@ pca_predict <- function(part, target_dir) {
   hard <- load_data(paste0("data/", part, "_hard.csv"))
   plot_all_profiles(soft, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_soft.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   plot_all_profiles(hard, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_hard.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
+  plot_all_together(soft, hard,
+    list(width=8,
+      height=8,
+      filename=file.path(target_dir, paste0('all_', part, '_both.pdf')),
+      xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)
+    )
+  )
+
   exts <- get_extents(hard, soft)
   plot_pca_predict(soft, hard, list(
     width=4.5,
