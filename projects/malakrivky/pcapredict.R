@@ -98,6 +98,23 @@ plot_predicted_curves <- function(predictor1, predictor2, predicted1, predicted2
   dev.off()
 }
 
+plot_pair <- function(minus_shape, plus_shape, params) {
+  png(paste0(params$filename, '.png'), width=params$width, height=params$height, units="cm", res=1200)
+  par(mar=c(1, 1, 1, 1)*0.5)
+  plot(c(), c(), type='n',
+    bty="n",
+    xaxt='n',
+    yaxt='n',
+    xlab="",
+    ylab="",
+    xlim=params$xlim,
+    ylim=params$ylim)
+  grid(params$grid[1], params$grid[2], lwd = params$grid[3])
+  plot_vector(minus_shape, 0.0, 0.5)
+  plot_vector(plus_shape, 0.0, 1.5)
+  dev.off()
+}
+
 lmr_score_predict <- function(model, newdata) {
   newdata <- data.frame(t(matrix(newdata)))
   names(newdata) <- tail(names(model$coefficients), -1)
@@ -131,9 +148,37 @@ dump_components_weights <- function(mlr_score_model) {
   }
 }
 
+plot_variability <- function(pca_model, pca_params, name) {
+
+  # adhoc modifications
+  pca_params$xlim <- c(-0.5, 0.5)
+  pca_params$grid <- c(5, 5, 1.0)
+  pca_params$width=3.214
+  pca_params$height=3.214
+
+  for (pca_no in 1:pca_model$significant_count) {
+    soft_pca_score <- rep(0, pca_model$length)
+
+    soft_pca_score[pca_no] <- sd(pca_model$score[,pca_no]) * pca_params$sdtimes
+    soft_plus_shape <- pca_shape_predict(pca_model, soft_pca_score, 1)
+
+    soft_pca_score[pca_no] <- -1 * sd(pca_model$score[,pca_no]) * pca_params$sdtimes
+    soft_minus_shape <- pca_shape_predict(pca_model, soft_pca_score, 1)
+
+    pca_params$filename <- file.path(pca_params$target_dir, paste0(
+      pca_params$part, '_', name,
+      '_pc', toString(pca_no),
+      '_', toString(pca_params$sdtimes), 'sd'))
+    plot_pair(soft_minus_shape$coords, soft_plus_shape$coords, pca_params)
+  }
+}
+
 plot_pca_predict <- function(soft, hard, params) {
   pca_soft <- compute_pca(soft)
   pca_hard <- compute_pca(hard)
+
+  plot_variability(pca_soft, params, 'soft')
+  plot_variability(pca_hard, params, 'hard')
 
   write.table(pca_soft$score, file = file.path(params$target_dir, paste0(params$part, '_soft_pca_score.csv')))
   write.table(pca_hard$score, file = file.path(params$target_dir, paste0(params$part, '_hard_pca_score.csv')))
