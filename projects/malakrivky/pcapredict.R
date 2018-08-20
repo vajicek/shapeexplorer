@@ -17,6 +17,7 @@ compute_pca <- function(data) {
   significant_count <- broken_stick_criterium(variability)
   return(list(significant_count=significant_count,
     length=length(variability),
+    variability=variability,
     data=data,
     score=pca$x,
     loadings=pca$rotation,
@@ -170,7 +171,9 @@ plot_pca_shape_change <- function(data, name, shape_var_params) {
   pca_result <- compute_pca(data)
   write.table(pca_result$score, file = file.path(shape_var_params$target_dir,
     paste0(shape_var_params$part, '_', name, '_pca_score.csv')))
-  plot_shape_change(pca_result, shape_var_params, 'soft')
+  write.table(pca_result$variability, file = file.path(shape_var_params$target_dir,
+      paste0(shape_var_params$part, '_', name, '_pca_variability.csv')))
+  plot_shape_change(pca_result, shape_var_params, name)
 }
 
 plot_pca_predict <- function(soft, hard, params) {
