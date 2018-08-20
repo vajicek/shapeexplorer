@@ -105,8 +105,8 @@ plot_pair <- function(minus_shape, plus_shape, params) {
     bty="n",
     xaxt='n',
     yaxt='n',
-    xlab="",
-    ylab="",
+    xlab=params$xlab,
+    ylab=params$ylab,
     xlim=params$xlim,
     ylim=params$ylim)
   grid(params$grid[1], params$grid[2], lwd = params$grid[3])
@@ -148,14 +148,7 @@ dump_components_weights <- function(mlr_score_model) {
   }
 }
 
-plot_variability <- function(pca_model, pca_params, name) {
-
-  # adhoc modifications
-  pca_params$xlim <- c(-0.5, 0.5)
-  pca_params$grid <- c(5, 5, 1.0)
-  pca_params$width=3.214
-  pca_params$height=3.214
-
+plot_shape_change <- function(pca_model, pca_params, name) {
   for (pca_no in 1:pca_model$significant_count) {
     soft_pca_score <- rep(0, pca_model$length)
 
@@ -173,15 +166,16 @@ plot_variability <- function(pca_model, pca_params, name) {
   }
 }
 
+plot_pca_shape_change <- function(data, name, shape_var_params) {
+  pca_result <- compute_pca(data)
+  write.table(pca_result$score, file = file.path(shape_var_params$target_dir,
+    paste0(shape_var_params$part, '_', name, '_pca_score.csv')))
+  plot_shape_change(pca_result, shape_var_params, 'soft')
+}
+
 plot_pca_predict <- function(soft, hard, params) {
   pca_soft <- compute_pca(soft)
   pca_hard <- compute_pca(hard)
-
-  plot_variability(pca_soft, params, 'soft')
-  plot_variability(pca_hard, params, 'hard')
-
-  write.table(pca_soft$score, file = file.path(params$target_dir, paste0(params$part, '_soft_pca_score.csv')))
-  write.table(pca_hard$score, file = file.path(params$target_dir, paste0(params$part, '_hard_pca_score.csv')))
 
   mlr_score_model=list(score_model=list(), length=pca_soft$length, significant_count=pca_soft$significant_count)
   for (pca_no in  1:pca_soft$significant_count) {
@@ -233,6 +227,8 @@ get_extents <- function(soft, hard) {
 pca_predict <- function(part, target_dir) {
   soft <- load_data(paste0("data/", part, "_soft.csv"))
   hard <- load_data(paste0("data/", part, "_hard.csv"))
+
+  # input data plots
   plot_all_profiles(soft, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_soft.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   plot_all_profiles(hard, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_hard.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
   plot_all_together(soft, hard,
@@ -243,7 +239,22 @@ pca_predict <- function(part, target_dir) {
     )
   )
 
-  exts <- get_extents(hard, soft)
+  # pca shape variation plots
+  shape_var_params = list(
+    width=3.214,
+    height=3.214,
+    part=part,
+    target_dir=target_dir,
+    filename='result.pdf',
+    sdtimes=3.0,
+    plotshift=0.25,
+    xlim=c(-0.5, 0.5),
+    ylim=c(-0.5, 0.5),
+    grid=c(5, 5, 1.0))
+  plot_pca_shape_change(hard, 'hard', shape_var_params)
+  plot_pca_shape_change(soft, 'soft', shape_var_params)
+
+  # pca predict
   plot_pca_predict(soft, hard, list(
     width=4.5,
     height=3.214,
@@ -272,7 +283,7 @@ main <- function() {
   option_list = list(
     make_option(c("--output"), default="", action="store"),
     make_option(c("--part"), default="", action="store")
-  );
+  )
 
   opt = parse_args(OptionParser(option_list=option_list))
   pca_predict(opt$part, opt$output)
