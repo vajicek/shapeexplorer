@@ -97,10 +97,9 @@ def _AnalyzeSmlByArc(input_dir, output_dir):
     bigtable_file = os.path.join(output_dir, 'bigtable.csv')
     _StoreForR(bigtable_file, _LoadMorpho2DCurveData(input_dir))
     riface = rscriptsupport.RScripInterface(output_dir)
-    riface.call_r('projects/malakrivky/io_error.R', ['--output',
-                                                     re.escape(output_dir),
-                                                     '--input',
-                                                     re.escape(bigtable_file)])
+    riface.call_r('projects/malakrivky/io_error.R',
+                  ['--output', re.escape(output_dir),
+                   '--input', re.escape(bigtable_file)])
 
 
 def _AnalyzeEndpoints(input_dir, output_dir):

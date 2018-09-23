@@ -15,8 +15,6 @@ def analyze_variability_slm(slm, output_dir, log_file, slm_handling):
 
 
 for slm in [10, 20, 30]:
-#for slm in [20]:
-    for slm_handling in ["none", "procd", "bende"]:
-    #for slm_handling in ["none"]:
-        output_slm_dir = (VARIABILITY_OUTPUT_DIR_BY_SLM % slm) + "_" + slm_handling
+    for slm_handling in ['none', 'procd', 'bende']:
+        output_slm_dir = (VARIABILITY_OUTPUT_DIR_BY_SLM % slm) + '_' + slm_handling
         analyze_variability_slm(slm, output_slm_dir, VARIABILITY_OUTPUT_LOG, slm_handling)

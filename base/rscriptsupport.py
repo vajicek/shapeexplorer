@@ -16,9 +16,9 @@ class RScripInterface(object):
 
     def call_r(self, script, args=[]):
         """ Call Rscript and pass output to print."""
+        args= ["\"" + arg + "\"" for arg in args]
         cmd = ['Rscript', script] + args
-        process = subprocess.Popen(' '.join(cmd), shell=True,
-                                   stdout=subprocess.PIPE)
+        process = subprocess.Popen(' '.join(cmd), shell=True, stdout=subprocess.PIPE)
         print(' '.join(cmd))
         for line in process.stdout:
             print(line.decode('utf-8'), end='')
@@ -26,10 +26,8 @@ class RScripInterface(object):
     def write_single_curve(self, category, curve_list):
         """ Write curves to .csv file curve-by-line."""
         logging.info("processing category: " + category)
-        with open(os.path.join(self.output,
-                               category + '.csv'), 'w') as csvfile:
-            spamwriter = csv.writer(csvfile, delimiter=';',
-                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        with open(os.path.join(self.output, category + '.csv'), 'w') as csvfile:
+            spamwriter = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for curve in curve_list:
                 curve_line = list(itertools.chain.from_iterable(curve))
                 spamwriter.writerow([str(num) for num in curve_line])

@@ -80,21 +80,16 @@ class CurvesProcessor(object):
         for diff_pair in opts['diffs']:
             indx1 = diff_pair[0]
             indx2 = diff_pair[1]
-            opts['values'] = self._curve_diff(means[""][indx1],
-                                              means[""][indx2])
+            opts['values'] = self._curve_diff(means[""][indx1], means[""][indx2])
             opts['other'] = means[""][indx2]
-            self._show_curves({groups[indx1][0]: [means[""][indx1]]},
-                              opts=opts)
+            self._show_curves({groups[indx1][0]: [means[""][indx1]]}, opts=opts)
 
     def visualize_loadings(self, input_dir, output_dir, prefix='means',
                            opts=None):
         """ Visualize curve variability loadings."""
-        means = self.riface.load_from_r(os.path.join(input_dir,
-                                                     prefix + ".csv"))
-        groups = self.riface.load_csv(os.path.join(input_dir,
-                                                   prefix + "_group.csv"))
-        loadings = self.riface.load_from_r(
-            os.path.join(input_dir, "all_pca_loadings.csv"))
+        means = self.riface.load_from_r(os.path.join(input_dir, prefix + ".csv"))
+        groups = self.riface.load_csv(os.path.join(input_dir, prefix + "_group.csv"))
+        loadings = self.riface.load_from_r(os.path.join(input_dir, "all_pca_loadings.csv"))
         opts['values'] = self._curve_dist(loadings[""][opts['pca_no']])
         opts['other'] = self._vectorize_loadings(means[""][7],
                                                  loadings[""][opts['pca_no']])
@@ -106,17 +101,15 @@ class CurvesProcessor(object):
             curves, names = self.load_all_curves(semilandmarks)
             self.riface.store_for_r(curves)
             self.riface.write_csv('names', names)
-        if self.riface.curve_files_uptodate('io_error') or force:
-            self.riface.store_for_r(self._load_io_error_curves(semilandmarks),
-                                    prefix='io_error')
+        if self.io_error_subdir and (self.riface.curve_files_uptodate('io_error') or force):
+            self.riface.store_for_r(self._load_io_error_curves(semilandmarks), prefix='io_error')
 
     def load_all_curves(self, semilandmarks):
         """Load curves by groups and optionally """
         curves = {}
         names = {}
         for subdir in self.subdirs:
-            curves = self._load_curves_in_dir(subdir, curves, names,
-                                              semilandmarks)
+            curves = self._load_curves_in_dir(subdir, curves, names, semilandmarks)
         return curves, names
 
     def measure_length(self, curves):

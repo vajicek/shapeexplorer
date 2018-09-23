@@ -36,7 +36,7 @@ store_gpa <- function(table, sample, output_dir) {
 }
 
 eval_hotelling <- function(output_dir, data, groups, nperm) {
-	unique_groups <- as.character(unique(groups$V1))
+	unique_groups <- as.character(unique(groups))
 	groups_count <- length(unique_groups)
 	pairs <- expand.grid(1:groups_count, 1:groups_count)
 	pvals <- matrix(ncol = groups_count, nrow = groups_count, dimnames = list(unique_groups, unique_groups))
@@ -44,8 +44,8 @@ eval_hotelling <- function(output_dir, data, groups, nperm) {
 		if (pairs[i,]$Var1 <= pairs[i,]$Var2) {
 			next
 		}
-		data1 <- data[groups$V1==unique_groups[pairs[i,]$Var1],]
-		data2 <- data[groups$V1==unique_groups[pairs[i,]$Var2],]
+		data1 <- data[groups==unique_groups[pairs[i,]$Var1],]
+		data2 <- data[groups==unique_groups[pairs[i,]$Var2],]
 		testResult <- hotelling.test(data1, data2, perm=(nperm>0), B=nperm, progBar=FALSE)
 		pvals[pairs[i,]$Var1, pairs[i,]$Var2] <- testResult$pval
 	}
@@ -70,7 +70,7 @@ statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 }
 
 mean_curves <- function(sample_gpa, sample_groups) {
-	unique_groups <- as.character(unique(sample_groups$V1))
+	unique_groups <- as.character(unique(sample_groups))
 	groups_count <- length(unique_groups)
 	means <- matrix(ncol = dim(sample_gpa)[2], nrow = groups_count + 1)
 
