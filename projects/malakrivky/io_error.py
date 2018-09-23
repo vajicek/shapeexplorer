@@ -55,22 +55,23 @@ def _ExtractEndPointCoordinates(filename):
 def _LoadMorpho2DCurveData(input_dir,
                            method=_ExtractSemilandmarksByArcCoordinates):
     data_dict = dict()
-    for filename in glob.glob(input_dir+'/*.txt'):
-        m = re.match(r".*\/([0-9_]*)([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)([0-9]+)[\_opr.\.txt,\.txt]+",
-                     filename)
-        if m:
-            key = m.group(2) + "_" + m.group(3) + "_" + m.group(4)
-            name = m.group(5)
-            repeat = int(m.group(6))
-            if name not in data_dict:
-                data_dict[name] = {}
-            if key not in data_dict[name]:
-                data_dict[name][key] = []
-            coords = method(filename)
-            data_dict[name][key].append(dict(
-                filename=filename,
-                no=repeat,
-                coords=coords))
+    for filename in glob.glob(input_dir + '/*.txt'):
+        m = re.match(r'.*\/([0-9_]*)([a-zA-Z]+)\_([a-zA-Z]+)\_([a-zA-Z]+)\_' +
+                     r'([a-zA-Z]+)([0-9]+)[\_opr.\.txt,\.txt]+', filename)
+        if not m:
+            continue
+        key = m.group(2) + '_' + m.group(3) + '_' + m.group(4)
+        name = m.group(5)
+        repeat = int(m.group(6))
+        if name not in data_dict:
+            data_dict[name] = {}
+        if key not in data_dict[name]:
+            data_dict[name][key] = []
+        coords = method(filename)
+        data_dict[name][key].append(dict(
+            filename=filename,
+            no=repeat,
+            coords=coords))
     return data_dict
 
 
@@ -86,30 +87,32 @@ def _StoreForR(output_file, data_dict):
         for name, value in data_dict.items():
             for key, data_n in value.items():
                 for data_1 in data_n:
-                    flat_coords = _Flatten(data_1["coords"])
-                    file.write(",".join([name, key] + flat_coords) + "\n")
+                    flat_coords = _Flatten(data_1['coords'])
+                    file.write(','.join([name, key] + flat_coords) + '\n')
 
 
 def _AnalyzeSmlByArc(input_dir, output_dir):
     os.makedirs(output_dir, exist_ok=True)
-    sys.stdout = open(os.path.join(output_dir, "results.txt"), 'w')
-    bigtable_file = os.path.join(output_dir, "bigtable.csv")
+    sys.stdout = open(os.path.join(output_dir, 'results.txt'), 'w')
+    bigtable_file = os.path.join(output_dir, 'bigtable.csv')
     _StoreForR(bigtable_file, _LoadMorpho2DCurveData(input_dir))
     riface = rscriptsupport.RScripInterface(output_dir)
-    riface.call_r('projects/malakrivky/io_error.R', ["--output",
-                  re.escape(output_dir), "--input", re.escape(bigtable_file)])
+    riface.call_r('projects/malakrivky/io_error.R', ['--output',
+                                                     re.escape(output_dir),
+                                                     '--input',
+                                                     re.escape(bigtable_file)])
 
 
 def _AnalyzeEndpoints(input_dir, output_dir):
     os.makedirs(output_dir, exist_ok=True)
-    sys.stdout = open(os.path.join(output_dir, "endpoints_results.txt"), 'w')
-    endpoints_file = os.path.join(output_dir, "endpoints.csv")
+    sys.stdout = open(os.path.join(output_dir, 'endpoints_results.txt'), 'w')
+    endpoints_file = os.path.join(output_dir, 'endpoints.csv')
     _StoreForR(endpoints_file,
                _LoadMorpho2DCurveData(input_dir, _ExtractEndPointCoordinates))
     riface = rscriptsupport.RScripInterface(output_dir)
-    riface.call_r('projects/malakrivky/io_error.R', ["--skip_manova",
-                  "--output", re.escape(output_dir), "--input",
-                  re.escape(endpoints_file)])
+    riface.call_r('projects/malakrivky/io_error.R',
+                  ['--skip_manova', '--output', re.escape(output_dir),
+                   '--input', re.escape(endpoints_file)])
 
 
 def _AnalyzeAll():
@@ -121,5 +124,6 @@ def _AnalyzeAll():
         _AnalyzeEndpoints(os.path.join(SOURCE_ROOT, datasets),
                           os.path.join(TARGET_ROOT, 'result', datasets))
 
-if __name__== "__main__":
+
+if __name__ == '__main__':
     _AnalyzeAll()
