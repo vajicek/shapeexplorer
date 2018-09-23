@@ -4,8 +4,8 @@ import sys
 
 from base import processcurves
 
-#TARGET_ROOT = os.path.expanduser('~/Dropbox')
-TARGET_ROOT = os.path.expanduser('~/DB')
+TARGET_ROOT = os.path.expanduser('~/Dropbox')
+#TARGET_ROOT = os.path.expanduser('~/DB')
 DATAFOLDER = os.path.join(TARGET_ROOT, r'TIBIA/CURVATURE/Tibie\ CURVES')
 SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk',
            'E_vrcholný středověk', 'F_pachner', 'G_angio']

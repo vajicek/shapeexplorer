@@ -60,6 +60,10 @@ statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
 	pca_results <- compute_pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
+	if (sig_components_count <= 1) {
+		sig_components_count <- 2
+		print("WARNING: Number of singnificant components according to broken stick criterion <=1, 2 is used for multivariate tests.")
+	}
 	sample_data <- pca_results$score[,1:sig_components_count]
 
 	# manova
