@@ -27,7 +27,7 @@ def get_processor(input_dir, output_dir, log_file, group_index):
     return processcurves.CurvesProcessor(input_dir, SUBDIRS_PAIRS[group_index], None, output_dir)
 
 def analyze_sexual_dimorphism(slm, output_dir, log_file, slm_handling):
-    for group_index in range(3):#len(GROUP_DIR)):
+    for group_index in range(len(GROUP_DIR)):
         group_input_dir = os.path.join(DATAFOLDER, GROUP_DIR[group_index])
         group_output_dir = os.path.join(output_dir, GROUP_DIR[group_index])
         curves_processor = get_processor(group_input_dir, group_output_dir, log_file, group_index)
@@ -36,7 +36,7 @@ def analyze_sexual_dimorphism(slm, output_dir, log_file, slm_handling):
 
 
 for slm in [10, 20, 30]:
-#for slm in [20]:
+#for slm in [30]:
     for slm_handling in ['none', 'procd', 'bende']:
     #for slm_handling in ['none']:
         output_slm_dir = (SEXDIMORPHISM_OUTPUT_DIR_BY_SLM % slm) + '_' + slm_handling
