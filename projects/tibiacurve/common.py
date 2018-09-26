@@ -4,11 +4,30 @@ import sys
 
 from base import processcurves
 
-TARGET_ROOT = os.path.expanduser('~/Dropbox')
-#TARGET_ROOT = os.path.expanduser('~/DB')
+#TARGET_ROOT = os.path.expanduser('~/Dropbox')
+TARGET_ROOT = os.path.expanduser('~/DB')
 DATAFOLDER = os.path.join(TARGET_ROOT, r'TIBIA/CURVATURE/Tibie\ CURVES')
-SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk',
-           'E_vrcholný středověk', 'F_pachner', 'G_angio']
+#SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk',
+#           'E_vrcholný středověk', 'F_pachner', 'G_angio']
+
+SUBDIRS = [
+    'A_eneolit/eneolit males',
+    'A_eneolit/eneolit females',
+    'B_bronz/bronz males',
+    'B_bronz/bronz females',
+    'C_latén/latén males',
+    'C_latén/latén females',
+    'D_raný středověk/raný střed males',
+    'D_raný středověk/raný střed females',
+    'E_vrcholný středověk/vrchol střed males',
+    'E_vrcholný středověk/vrchol střed females',
+    'F_pachner/pachner males',
+    'F_pachner/pachner females',
+    'G_angio/angio males',
+    'G_angio/angio females'
+]
+
+
 IO_ERROR_SUBDIR = r'IO\ error'
 OUTPUT = 'output'
 GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),

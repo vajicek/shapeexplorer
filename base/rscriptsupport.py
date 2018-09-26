@@ -26,7 +26,11 @@ class RScripInterface(object):
     def write_single_curve(self, category, curve_list):
         """ Write curves to .csv file curve-by-line."""
         logging.info("processing category: " + category)
-        with open(os.path.join(self.output, category + '.csv'), 'w') as csvfile:
+        csv_filename = os.path.join(self.output, category + '.csv')
+        toplevel_dir = os.path.dirname(csv_filename)
+        if not os.path.exists(toplevel_dir):
+            os.makedirs(toplevel_dir)
+        with open(csv_filename, 'w') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for curve in curve_list:
                 curve_line = list(itertools.chain.from_iterable(curve))

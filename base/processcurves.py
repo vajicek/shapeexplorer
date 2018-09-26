@@ -34,8 +34,7 @@ class CurvesProcessor(object):
 
     def length_analysis(self, output_dir):
         self.riface.call_r('base/processcurves.R',
-                           ['--length_analysis', "--output", output_dir])
-        pass
+                           ['--length_analysis', '--output', output_dir])
 
     def analyze_variability(self, input_dir, output_dir, slm_handling='none'):
         """ Analyze variability of the sample pre-processed to given output."""
@@ -133,7 +132,7 @@ class CurvesProcessor(object):
         subdir_abs = os.path.join(self.datafolder, subdir)
         curves[subdir] = []
         names[subdir] = []
-        for curve_file in glob.glob(_unslash(subdir_abs) + '/*.asc'):
+        for curve_file in glob.glob(_unslash(subdir_abs) + '/**/*.asc', recursive=True):
             logging.info(curve_file)
             if semilandmarks:
                 curve = subdivcurve.subdivide_curve(
