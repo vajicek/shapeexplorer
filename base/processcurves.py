@@ -19,6 +19,13 @@ def _unslash(path):
     return path.replace("\\", "")
 
 
+def _mkbasedir_if_not_exist(filename):
+    if filename:
+        directory = os.path.dirname(filename)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+
 class CurvesProcessor(object):
     """ Analyze groups of curves. """
 
@@ -31,6 +38,9 @@ class CurvesProcessor(object):
         self.subdirs = subdirs
         self.io_error_subdir = io_error_subdir
         self.riface = rscriptsupport.RScripInterface(output)
+
+    def get_groups_count(self):
+        return len(self.subdirs)
 
     def length_analysis(self, output_dir):
         self.riface.call_r('base/processcurves.R',
@@ -197,9 +207,11 @@ class CurvesProcessor(object):
             vdata += sampledata.create_arrows(curve, arrows_scaling,
                                               color=color,
                                               other_points=other_points)
+        return vdata
 
     def _show_vdata_in_viewer(self, vdata, filename, opts, res):
         v = viewer.Viewer(vdata, size=res)
+        _mkbasedir_if_not_exist(filename)
         v.filename = filename
         if 'camera' in opts:
             v.set_camera(position=opts['camera']['position'],

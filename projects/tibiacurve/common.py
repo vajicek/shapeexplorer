@@ -1,4 +1,5 @@
 
+import logging
 import os
 import sys
 
@@ -6,38 +7,63 @@ from base import processcurves
 
 #TARGET_ROOT = os.path.expanduser('~/Dropbox')
 TARGET_ROOT = os.path.expanduser('~/DB')
+RESULT_FOLDER = 'TIBIA/CURVATURE/results_separated'
 DATAFOLDER = os.path.join(TARGET_ROOT, r'TIBIA/CURVATURE/Tibie\ CURVES')
+OUTPUT_LOG = 'output.txt'
+
+logging.basicConfig(level=logging.INFO)
+
+
 #SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk',
 #           'E_vrcholný středověk', 'F_pachner', 'G_angio']
-
 SUBDIRS = [
-    'A_eneolit/eneolit males',
-    'A_eneolit/eneolit females',
-    'B_bronz/bronz males',
-    'B_bronz/bronz females',
-    'C_latén/latén males',
-    'C_latén/latén females',
-    'D_raný středověk/raný střed males',
-    'D_raný středověk/raný střed females',
-    'E_vrcholný středověk/vrchol střed males',
-    'E_vrcholný středověk/vrchol střed females',
-    'F_pachner/pachner males',
-    'F_pachner/pachner females',
-    'G_angio/angio males',
-    'G_angio/angio females'
+    'eneolit males',
+    'eneolit females',
+    'bronz males',
+    'bronz females',
+    'latén males',
+    'latén females',
+    'raný střed males',
+    'raný střed females',
+    'vrchol střed males',
+    'vrchol střed females',
+    'pachner males',
+    'pachner females',
+    'angio males',
+    'angio females'
 ]
 
+#SLM_COUNTS = [10, 20, 30]
+SLM_COUNTS = [20]
+#SLM_HANDLING = ['none', 'procd', 'bende']
+SLM_HANDLING = ['none', 'procd']
 
 IO_ERROR_SUBDIR = r'IO\ error'
 OUTPUT = 'output'
-GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),
-                    'B_bronz': (0, 1, 0),
-                    'C_latén': (0, 0, 1),
-                    'D_raný středověk': (1, 1, 0),
-                    'E_vrcholný středověk': (1, 0, 1),
-                    'F_pachner': (0, 1, 1),
-                    'G_angio': (0, 0, 0),
-                    'all': (1, 1, 1)}
+#GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),
+#                    'B_bronz': (0, 1, 0),
+#                    'C_latén': (0, 0, 1),
+#                    'D_raný středověk': (1, 1, 0),
+#                    'E_vrcholný středověk': (1, 0, 1),
+#                    'F_pachner': (0, 1, 1),
+#                    'G_angio': (0, 0, 0),
+#                    'all': (1, 1, 1)}
+GROUP_COLORS_MAP = {
+    'eneolit males': (1, 0, 0),
+    'eneolit females': (0.5, 0, 0),
+    'bronz males': (0, 1, 0),
+    'bronz females': (0, 0.5, 0),
+    'latén males': (0, 0, 1),
+    'latén females': (0, 0, 0.5),
+    'raný střed males': (1, 1, 0),
+    'raný střed females': (0.5, 0.5, 0),
+    'vrchol střed males': (1, 0, 1),
+    'vrchol střed females': (0.5, 0, 0.5),
+    'pachner males': (0, 1, 1),
+    'pachner females': (0, 0.5, 0.5),
+    'angio males': (0, 0, 0),
+    'angio females': (0.5, 0.5, 0.5),
+    'all': (1, 1, 1)}
 
 
 def mkdir_if_not_exist(directory):

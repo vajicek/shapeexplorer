@@ -58,6 +58,7 @@ eval_hotelling <- function(output_dir, data, groups, nperm) {
 # sample_groups - groups
 statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	# pca (remove dependencies)
+	cat("Compute PCA\n")
 	pca_results <- compute_pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	if (sig_components_count <= 1) {
@@ -66,10 +67,10 @@ statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
 	}
 	sample_data <- pca_results$score[,1:sig_components_count]
 
-	# manova
+	cat("Eval MANOVA\n")
 	eval_manova(output_dir, "", sample_data, sample_groups)
 
-	# paired hotelling
+	cat("Eval paired Hotelling T2 test\n")
 	eval_hotelling(output_dir, sample_data, sample_groups, 10000)
 }
 
@@ -107,7 +108,7 @@ curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sam
 	sample_data <- load_curves(sample, input_dir)
 	sample_groups <- load_groups(sample, input_dir)$V1
 
-	#
+	cat("Peform GPA\n")
 	if (slm_handling == "none") {
 		gpa <- gpagen(sample_data, print.progress=FALSE)
 	} else if (slm_handling == "procd") {
@@ -117,17 +118,16 @@ curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sam
 		curve_sliders <- get_curve_sliders(sample_data)
 		gpa <- gpagen(sample_data, print.progress=FALSE, curves=curve_sliders, ProcD=FALSE)
 	}
-	cat("Peformed GPA\n")
-	print(gpa)
 
+	cat("Store GPA\n")
 	sample_gpa <- transform_pkn_to_bigtable(gpa$coords)
 	store_gpa(sample_gpa, sample, output_dir)
 
-	#
+	cat("Store curves\n")
 	means <- mean_curves(sample_gpa, sample_groups)
 	store_named_curves(means$means, means$names, 'means', output_dir)
 
-	#
+	cat("Compute statistics\n")
 	statistics(output_dir, sample, sample_gpa, sample_groups)
 }
 
