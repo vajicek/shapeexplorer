@@ -18,18 +18,18 @@ logging.basicConfig(level=logging.INFO)
 #           'E_vrcholný středověk', 'F_pachner', 'G_angio']
 SUBDIRS = [
     'eneolit males',
-    'eneolit females',
     'bronz males',
-    'bronz females',
     'latén males',
-    'latén females',
     'raný střed males',
-    'raný střed females',
     'vrchol střed males',
-    'vrchol střed females',
     'pachner males',
-    'pachner females',
     'angio males',
+    'eneolit females',
+    'bronz females',
+    'latén females',
+    'raný střed females',
+    'vrchol střed females',
+    'pachner females',
     'angio females'
 ]
 

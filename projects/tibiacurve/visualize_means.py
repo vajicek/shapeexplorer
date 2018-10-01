@@ -8,9 +8,9 @@ from projects.tibiacurve import common
 MEANS_OUTPUT_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, common.RESULT_FOLDER, 'means/sm%02d')
 DATA_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, common.RESULT_FOLDER, 'data/sm%02d')
 
-def get_vis_opts(output_dir, radius, diffs):
+def get_vis_opts(output_dir, radius, diffs, count=None):
     if diffs:
-        filename = 'diff_' + ('all' if diffs[0][0] == 7 else common.SUBDIRS[diffs[0][0]]) + '_' + common.SUBDIRS[diffs[0][1]]
+        filename = 'diff_' + ('all' if diffs[0][0] == count else common.SUBDIRS[diffs[0][0]]) + '_' + common.SUBDIRS[diffs[0][1]]
         filename = os.path.join(output_dir, filename)
     else:
         filename = os.path.join(output_dir, 'all_specimen')
@@ -36,12 +36,15 @@ def generate_means_visualization(input_dir, output_dir, log_file):
     groups_count = curves_processor.get_groups_count()
 
     logging.info('Visualize group mean diffs to all mean')
-    for i in range(groups_count - 1):
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[groups_count - 1, i]]))
+    for i in range(groups_count):
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[groups_count, i]], groups_count))
 
     logging.info('Visualize subsequent means diffs')
-    for i in range(groups_count - 1):
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[i, i + 1]]))
+    for i in range(0, int(groups_count / 2)):
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[i, i + 1]], groups_count))
+
+    for i in range(int(groups_count / 2), groups_count):
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[i, i + 1]], groups_count))
 
     #logging.info('Visualize 0-3, 3-7, 0-7')
     #curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[0, 3]]))

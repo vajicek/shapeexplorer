@@ -55,28 +55,46 @@ plot_pca_ellipse <- function(x, y, level=0.95, col='r', lty=1) {
 	}
 }
 
+prepare_glyps <- function(groups) {
+	colors <- c('red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'black')
+	symbols <- c(0, 1)
+	unique_groups <- unique(groups)
+	group_glyp <- array(dim=c(length(unique_groups), 2))
+	for (index in 1:length(unique_groups)) {
+		group_glyp[index, 1] <- colors[(index - 1) %% length(colors) + 1]
+		group_glyp[index, 2] <- symbols[(index - 1) / length(colors) + 1]
+	}
+	element_glyp <- array(dim=c(length(groups), 2))
+	for (group_no in 1:length(groups)) {
+		index = which(unique_groups == groups[group_no])
+		element_glyp[group_no, 1] <- group_glyp[index, 1]
+		element_glyp[group_no, 2] <- group_glyp[index, 2]
+	}
+	return(list(group_glyp=group_glyp, element_glyp=element_glyp, unique_groups=unique_groups))
+}
+
 plot_pca <- function(output_dir, pca, groups, params) {
 	for (param1 in params) {
 		pdf(file.path(output_dir, param1$filename), width=10, height=8)
-		colors <- c('red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'black')
-		unique_groups <- unique(groups)
-		groups_count <- length(unique_groups)
-		group_cols <- colors[1:groups_count]
-		spec_cols <- mapvalues(groups, from=unique_groups, to=group_cols)
-		palette(group_cols)
+		glyps <- prepare_glyps(groups)
 		par(xpd = T, mar = par()$mar + c(0,0,0,9))
 		plot(x=pca$x[,param1$xcomp],
 				y=pca$x[,param1$ycomp],
-				col=spec_cols,
+				col=glyps$element_glyp[,1],
+				pch=as.integer(glyps$element_glyp[,2]),
 				xlab=paste0('PCA ', toString(param1$xcomp)),
 				ylab=paste0('PCA ', toString(param1$ycomp)))
-		legend("topright", inset=c(-0.30, 0), legend=unique_groups, col=group_cols, pch=1)
+		legend("topright",
+			inset=c(-0.30, 0),
+			legend=glyps$unique_groups,
+			col=glyps$group_glyp[,1],
+			pch=as.integer(glyps$group_glyp[,2]))
 
-		for (group in 1:groups_count) {
-			group_mask <- groups==unique_groups[group]
+		for (group in 1:length(glyps$unique_groups)) {
+			group_mask <- groups==glyps$unique_groups[group]
 			x <- pca$x[group_mask, param1$xcomp]
 			y <- pca$x[group_mask, param1$ycomp]
-			plot_pca_ellipse(x=x, y=y, level=param1$level, col=group_cols[group])
+			plot_pca_ellipse(x=x, y=y, level=param1$level, col=glyps$group_glyp[group,1])
 		}
 
 		dev.off()
