@@ -50,18 +50,18 @@ OUTPUT = 'output'
 #                    'all': (1, 1, 1)}
 GROUP_COLORS_MAP = {
     'eneolit males': (1, 0, 0),
-    'eneolit females': (0.5, 0, 0),
     'bronz males': (0, 1, 0),
-    'bronz females': (0, 0.5, 0),
     'latén males': (0, 0, 1),
-    'latén females': (0, 0, 0.5),
     'raný střed males': (1, 1, 0),
-    'raný střed females': (0.5, 0.5, 0),
     'vrchol střed males': (1, 0, 1),
-    'vrchol střed females': (0.5, 0, 0.5),
     'pachner males': (0, 1, 1),
-    'pachner females': (0, 0.5, 0.5),
     'angio males': (0, 0, 0),
+    'eneolit females': (0.5, 0, 0),
+    'bronz females': (0, 0.5, 0),
+    'latén females': (0, 0, 0.5),
+    'raný střed females': (0.5, 0.5, 0),
+    'vrchol střed females': (0.5, 0, 0.5),
+    'pachner females': (0, 0.5, 0.5),
     'angio females': (0.5, 0.5, 0.5),
     'all': (1, 1, 1)}
 

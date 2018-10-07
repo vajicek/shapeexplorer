@@ -40,16 +40,20 @@ def generate_means_visualization(input_dir, output_dir, log_file):
         curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[groups_count, i]], groups_count))
 
     logging.info('Visualize subsequent means diffs')
-    for i in range(0, int(groups_count / 2)):
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[i, i + 1]], groups_count))
+    for sex_name, sex_shift in dict(male=0, female=int(groups_count / 2)).items():
+        logging.info('Visualize subsequent means diffs for %s' % sex_name)
+        for i in range(sex_shift, sex_shift + int(groups_count / 2) - 1):
+            curves_processor.visualize_mean_difference(input_dir,
+                opts=get_vis_opts(output_dir,
+                    [0.03, 0.10],
+                    [[i, i + 1]],
+                    groups_count))
 
-    for i in range(int(groups_count / 2), groups_count):
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[i, i + 1]], groups_count))
-
-    #logging.info('Visualize 0-3, 3-7, 0-7')
-    #curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[0, 3]]))
-    #curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[3, 6]]))
-    #curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[0, 6]]))
+    logging.info('Visualize 0-3, 3-6, 0-6')
+    for sex_shift in (0, int(groups_count / 2)):
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[sex_shift + 0, sex_shift + 3]]))
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[sex_shift + 3, sex_shift + 6]]))
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[sex_shift + 0, sex_shift + 6]]))
 
 def compute_means(slm, output_dir, log_file, slm_handling):
     curves_processor = common.get_processor(output_dir, log_file)
