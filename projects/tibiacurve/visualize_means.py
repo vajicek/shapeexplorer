@@ -34,15 +34,16 @@ def generate_means_visualization(input_dir, output_dir, log_file):
     curves_processor.visualize_means(input_dir, opts=get_vis_opts(output_dir, 0.03, None))
 
     groups_count = curves_processor.get_groups_count()
+    females_shift = int(groups_count / 2)
 
     logging.info('Visualize group mean diffs to all mean')
     for i in range(groups_count):
         curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[groups_count, i]], groups_count))
 
     logging.info('Visualize subsequent means diffs')
-    for sex_name, sex_shift in dict(male=0, female=int(groups_count / 2)).items():
+    for sex_name, sex_shift in dict(male=0, female=females_shift).items():
         logging.info('Visualize subsequent means diffs for %s' % sex_name)
-        for i in range(sex_shift, sex_shift + int(groups_count / 2) - 1):
+        for i in range(sex_shift, sex_shift + females_shift - 1):
             curves_processor.visualize_mean_difference(input_dir,
                 opts=get_vis_opts(output_dir,
                     [0.03, 0.10],
@@ -50,10 +51,14 @@ def generate_means_visualization(input_dir, output_dir, log_file):
                     groups_count))
 
     logging.info('Visualize 0-3, 3-6, 0-6')
-    for sex_shift in (0, int(groups_count / 2)):
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[sex_shift + 0, sex_shift + 3]]))
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[sex_shift + 3, sex_shift + 6]]))
-        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[sex_shift + 0, sex_shift + 6]]))
+    for sex_shift in (0, females_shift):
+        for groups in ([0, 3], [3, 6], [0, 6]):
+            curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(
+                output_dir, [0.03, 0.10], [[sex_shift + groups[0], sex_shift + groups[1]]]))
+
+    logging.info('Visualize sex diffs for 3, 5')
+    for group in (3, 5):
+        curves_processor.visualize_mean_difference(input_dir, opts=get_vis_opts(output_dir, [0.03, 0.10], [[group, females_shift + group]]))
 
 def compute_means(slm, output_dir, log_file, slm_handling):
     curves_processor = common.get_processor(output_dir, log_file)
