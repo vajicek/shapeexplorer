@@ -14,25 +14,30 @@ OUTPUT_LOG = 'output.txt'
 
 logging.basicConfig(level=logging.INFO)
 
-
-#SUBDIRS = ['A_eneolit', 'B_bronz', 'C_latén', 'D_raný středověk',
-#           'E_vrcholný středověk', 'F_pachner', 'G_angio']
 SUBDIRS = [
-    'eneolit males',
-    'bronz males',
-    'latén males',
-    'raný střed males',
-    'vrchol střed males',
-    'pachner males',
-    'angio males',
-    'eneolit females',
-    'bronz females',
-    'latén females',
-    'raný střed females',
-    'vrchol střed females',
-    'pachner females',
-    'angio females'
-]
+    dict(name='eneolit males', subdirs=['eneolit males']),
+    dict(name='bronz males', subdirs=['bronz males']),
+    dict(name='latén males', subdirs=['latén males']),
+    dict(name='raný střed males', subdirs=['raný střed males']),
+    dict(name='vrchol střed males', subdirs=['vrchol střed males']),
+    dict(name='pachner males', subdirs=['pachner males']),
+    dict(name='angio males', subdirs=['angio males']),
+    dict(name='eneolit females', subdirs=['eneolit females']),
+    dict(name='bronz females', subdirs=['bronz females']),
+    dict(name='latén females', subdirs=['latén females']),
+    dict(name='raný střed females', subdirs=['raný střed females']),
+    dict(name='vrchol střed females', subdirs=['vrchol střed females']),
+    dict(name='pachner females', subdirs=['pachner females']),
+    dict(name='angio females', subdirs=['angio females'])]
+
+SUBDIRS_JOINED = [
+    dict(name='eneolit', subdirs=['eneolit males', 'eneolit females']),
+    dict(name='bronz', subdirs=['bronz males', 'bronz females']),
+    dict(name='latén', subdirs=['latén males', 'latén females']),
+    dict(name='raný střed', subdirs=['raný střed males', 'raný střed females']),
+    dict(name='vrchol střed', subdirs=['vrchol střed males', 'vrchol střed females']),
+    dict(name='pachner', subdirs=['pachner males', 'pachner females']),
+    dict(name='angio', subdirs=['angio males', 'angio females'])]
 
 #SLM_COUNTS = [10, 20, 30]
 SLM_COUNTS = [20]
@@ -64,6 +69,13 @@ GROUP_COLORS_MAP = {
     'vrchol střed females': (0.5, 0, 0.5),
     'pachner females': (0, 0.5, 0.5),
     'angio females': (0.5, 0.5, 0.5),
+    'eneolit': (1, 0, 0),
+    'bronz': (0, 1, 0),
+    'latén': (0, 0, 1),
+    'raný střed': (1, 1, 0),
+    'vrchol střed': (1, 0, 1),
+    'pachner': (0, 1, 1),
+    'angio': (0, 0, 0),
     'all': (1, 1, 1)}
 
 
@@ -85,13 +97,13 @@ def mkdir_if_not_exist(directory):
     return directory
 
 
-def get_processor(output_dir, log_file, verbose=False):
+def get_processor(output_dir, log_file, verbose=False, io_error=False):
     mkdir_if_not_exist(output_dir)
     if log_file and not verbose:
         sys.stdout = open(os.path.join(output_dir, log_file), 'w')
     return processcurves.CurvesProcessor(DATAFOLDER,
                                          SUBDIRS,
-                                         IO_ERROR_SUBDIR,
+                                         IO_ERROR_SUBDIR if io_error else None,
                                          output_dir)
 
 

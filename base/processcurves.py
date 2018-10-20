@@ -29,18 +29,18 @@ def _mkbasedir_if_not_exist(filename):
 class CurvesProcessor(object):
     """ Analyze groups of curves. """
 
-    def __init__(self, datafolder, subdirs, io_error_subdir, output):
+    def __init__(self, datafolder, groups, io_error_subdir, output):
         """ datafolder - Data folder.
-        subdirs - List of group subfolders.
+        groups - List of group subfolders.
         io_error_subdir - Folder with IO error data.
         output - Output folder. """
         self.datafolder = datafolder
-        self.subdirs = subdirs
+        self.groups = groups
         self.io_error_subdir = io_error_subdir
         self.riface = rscriptsupport.RScripInterface(output)
 
     def get_groups_count(self):
-        return len(self.subdirs)
+        return len(self.groups)
 
     def length_analysis(self, output_dir):
         self.riface.call_r('base/processcurves.R',
@@ -123,8 +123,9 @@ class CurvesProcessor(object):
         """Load curves by groups and optionally """
         curves = {}
         names = {}
-        for subdir in self.subdirs:
-            curves = self._load_curves_in_dir(subdir, curves, names, semilandmarks)
+        for group in self.groups:
+            for subdir in group['subdirs']:
+                curves = self._load_curves_in_dir(subdir, group['name'], curves, names, semilandmarks)
         return curves, names
 
     def measure_length(self, curves):
@@ -144,10 +145,10 @@ class CurvesProcessor(object):
             lm[2] += lm_loadings[2]
         return loaded_mean
 
-    def _load_curves_in_dir(self, subdir, curves, names, semilandmarks):
+    def _load_curves_in_dir(self, subdir, group_name, curves, names, semilandmarks):
         subdir_abs = os.path.join(self.datafolder, subdir)
-        curves[subdir] = []
-        names[subdir] = []
+        curves[group_name] = []
+        names[group_name] = []
         for curve_file in glob.glob(_unslash(subdir_abs) + '/**/*.asc', recursive=True):
             logging.info(curve_file)
             if semilandmarks:
@@ -155,8 +156,8 @@ class CurvesProcessor(object):
                     sampledata.load_polyline_data(curve_file), semilandmarks)
             else:
                 curve = sampledata.load_polyline_data(curve_file)
-            curves[subdir].append(curve)
-            names[subdir].append(curve_file)
+            curves[group_name].append(curve)
+            names[group_name].append(curve_file)
         return curves
 
     def _load_io_error_curves(self, semilandmarks):

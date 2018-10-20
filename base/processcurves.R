@@ -109,7 +109,7 @@ get_curve_sliders <- function(sample_data) {
 }
 
 eval_allometry <- function(output_dir, sample_gpa, sample_lengths, sample_groups, sample_name) {
-	sample_gpa_pca <- pca_reduction(output_dir, sample_name, sample_gpa, sample_groups)
+	sample_gpa_pca <- pca_reduction(NULL, sample_name, sample_gpa, sample_groups)
 	model <- lm(sample_gpa_pca ~ sample_lengths)
 	print(anova(model))
 }

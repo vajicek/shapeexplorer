@@ -159,30 +159,31 @@ compute_variability <- function(pca) {
 
 compute_pca <- function(output_dir, prefix, sample_gpa, groups, pca_plot_params) {
 	pca <- prcomp(sample_gpa, scale=FALSE, retx=TRUE)
-	plot_pca(output_dir, pca, groups, pca_plot_params)
-
-	# store loadings
-	write.table(t(pca$rotation), file.path(output_dir, paste0(prefix, "_pca_loadings.csv")), row.names=FALSE, col.names=FALSE, sep=";")
-
-	# store pca scores
-	write.table(pca$x, file.path(output_dir, paste0(prefix, "_pca_scores.csv")), row.names=FALSE, col.names=FALSE, sep=";")
-
 	variability <- compute_variability(pca)
+	if (!is.null(output_dir)) {
+		plot_pca(output_dir, pca, groups, pca_plot_params)
 
-	# plot screeplot
-	n <- length(variability)
-	plot_line(output_dir,
-		list(list(data=100 * variability, lty=1, name="Variability (%)"),
-			list(data=100 * get_broken_stick_criterium_sequence(n), lty=2, name='Broken stick')),
-		list(filename="screeplot.pdf",
-			legend_position="topright",
-			xlab="Component",
-			ylab="Variability (%)",
-			xlim=c(1, n)))
+		# store loadings
+		write.table(t(pca$rotation), file.path(output_dir, paste0(prefix, "_pca_loadings.csv")), row.names=FALSE, col.names=FALSE, sep=";")
 
-	# store variability
-	write.table(variability, file.path(output_dir, paste0(prefix, "_pca_variability.csv")), row.names=FALSE, col.names=FALSE, sep=";")
+		# store pca scores
+		write.table(pca$x, file.path(output_dir, paste0(prefix, "_pca_scores.csv")), row.names=FALSE, col.names=FALSE, sep=";")
 
+
+		# plot screeplot
+		n <- length(variability)
+		plot_line(output_dir,
+			list(list(data=100 * variability, lty=1, name="Variability (%)"),
+				list(data=100 * get_broken_stick_criterium_sequence(n), lty=2, name='Broken stick')),
+			list(filename="screeplot.pdf",
+				legend_position="topright",
+				xlab="Component",
+				ylab="Variability (%)",
+				xlim=c(1, n)))
+
+		# store variability
+		write.table(variability, file.path(output_dir, paste0(prefix, "_pca_variability.csv")), row.names=FALSE, col.names=FALSE, sep=";")
+	}
 	return(list(score=pca$x, variability=variability, loadings=pca$rotation))
 }
 
