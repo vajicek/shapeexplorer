@@ -4,8 +4,8 @@ import os
 
 from projects.tibiacurve import common
 
-LOADINGS_OUTPUT_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, common.RESULT_FOLDER, 'variability/sm%02d')
-DATA_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, common.RESULT_FOLDER, 'data/sm%02d')
+LOADINGS_OUTPUT_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, common.RESULT_FOLDER, 'variability/sm%02d_%s')
+DATA_BY_SLM_DIR = os.path.join(common.TARGET_ROOT, common.RESULT_FOLDER, 'data/sm%02d_%s')
 
 def get_vis_opts(output_dir, radius, pca_no):
     filename = os.path.join(output_dir, 'pca_' + str(pca_no + 1))
@@ -30,9 +30,9 @@ def compute_variability(slm, output_dir, log_file, slm_handling):
     curves_processor.preprocess_curves(slm, True)
     curves_processor.analyze_variability(output_dir, output_dir, slm_handling=slm_handling)
 
-for slm in common.SLM_COUNTS:
-    for slm_handling in common.SLM_HANDLING:
-        output_slm_dir = (DATA_BY_SLM_DIR % slm) + "_" + slm_handling
-        loadings_output_dir = (LOADINGS_OUTPUT_BY_SLM_DIR % slm) + "_" + slm_handling
-        compute_variability(slm, output_slm_dir, common.OUTPUT_LOG, slm_handling)
-        generate_loading_visualization(output_slm_dir, loadings_output_dir, common.OUTPUT_LOG)
+def process(output_slm_dir, log_file, slm_handling, slm, args):
+    loadings_output_dir = LOADINGS_OUTPUT_BY_SLM_DIR % (slm, slm_handling)
+    compute_variability(slm, output_slm_dir, log_file, slm_handling)
+    generate_loading_visualization(output_slm_dir, loadings_output_dir, log_file)
+
+common.process_lms_handling(DATA_BY_SLM_DIR, process, common.args())

@@ -1,4 +1,5 @@
 
+import argparse
 import logging
 import os
 import sys
@@ -66,15 +67,27 @@ GROUP_COLORS_MAP = {
     'all': (1, 1, 1)}
 
 
+def args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--verbose", default=False, action="store_true")
+    return parser.parse_args()
+
+
+def process_lms_handling(output_pattern, fnc, args):
+    for slm in SLM_COUNTS:
+        for slm_handling in SLM_HANDLING:
+            fnc(output_pattern % (slm, slm_handling), OUTPUT_LOG, slm_handling, slm, args)
+
+
 def mkdir_if_not_exist(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
     return directory
 
 
-def get_processor(output_dir, log_file):
+def get_processor(output_dir, log_file, verbose=False):
     mkdir_if_not_exist(output_dir)
-    if log_file:
+    if log_file and not verbose:
         sys.stdout = open(os.path.join(output_dir, log_file), 'w')
     return processcurves.CurvesProcessor(DATAFOLDER,
                                          SUBDIRS,

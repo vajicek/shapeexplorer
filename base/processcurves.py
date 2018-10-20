@@ -47,9 +47,15 @@ class CurvesProcessor(object):
                            ['--length_analysis', '--output', output_dir])
 
     def analyze_variability(self, input_dir, output_dir, slm_handling='none'):
-        """ Analyze variability of the sample pre-processed to given output."""
+        """ Analyze variability of the sample."""
         self.riface.call_r('base/processcurves.R',
                            ['--variability', '--input', input_dir, '--output',
+                            output_dir, '--slm_handling', slm_handling])
+
+    def analyze_allometry(self, input_dir, output_dir, slm_handling='none'):
+        """ Analyze allometry of the sample groups."""
+        self.riface.call_r('base/processcurves.R',
+                           ['--allometry', '--input', input_dir, '--output',
                             output_dir, '--slm_handling', slm_handling])
 
     def analyze_io_error(self, input_dir, output_dir):

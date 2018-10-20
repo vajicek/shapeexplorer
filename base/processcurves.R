@@ -52,20 +52,24 @@ eval_hotelling <- function(output_dir, data, groups, nperm) {
 	write.csv(pvals, file.path(output_dir, "hotelling_pvals.csv"))
 }
 
-# output_dir - directory
-# sample - string, filename prefix
-# sample_gpa - landmarks
-# sample_groups - groups
-statistics <- function(output_dir, sample, sample_gpa, sample_groups) {
-	# pca (remove dependencies)
-	cat("Compute PCA\n")
-	pca_results <- compute_pca(output_dir, sample, sample_gpa, sample_groups, get_pca_plot_params(sample))
+pca_reduction <- function(output_dir, sample_name, sample_gpa, sample_groups) {
+	pca_results <- compute_pca(output_dir, sample_name, sample_gpa, sample_groups, get_pca_plot_params(sample_name))
 	sig_components_count <- broken_stick_criterium(pca_results$variability)
 	if (sig_components_count <= 1) {
 		sig_components_count <- 2
 		print("WARNING: Number of singnificant components according to broken stick criterion <=1, 2 is used for multivariate tests.")
 	}
 	sample_data <- pca_results$score[,1:sig_components_count]
+	return(sample_data)
+}
+
+# output_dir - directory
+# sample_name - string, filename prefix
+# sample_gpa - landmarks
+# sample_groups - groups
+statistics <- function(output_dir, sample_name, sample_gpa, sample_groups) {
+	cat("Compute PCA\n")
+	sample_data <- pca_reduction(output_dir, sample_name, sample_gpa, sample_groups)
 
 	cat("Eval MANOVA\n")
 	eval_manova(output_dir, "", sample_data, sample_groups)
@@ -104,11 +108,33 @@ get_curve_sliders <- function(sample_data) {
 	return(curve_slider)
 }
 
-curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sample) {
-	sample_data <- load_curves(sample, input_dir)
-	sample_groups <- load_groups(sample, input_dir)$V1
+eval_allometry <- function(output_dir, sample_gpa, sample_lengths, sample_groups, sample_name) {
+	sample_gpa_pca <- pca_reduction(output_dir, sample_name, sample_gpa, sample_groups)
+	model <- lm(sample_gpa_pca ~ sample_lengths)
+	print(anova(model))
+}
 
-	cat("Peform GPA\n")
+point_distance <- function(a, b) {
+	return(sqrt(sum((a - b)**2)))
+}
+
+compute_lengths <- function(sample_data) {
+	dims <- dim(sample_data)
+	curve_lengths <- c()
+	for (specimen_no in 1:dims[3]) {
+		length <- 0
+		for (lm_no in 1:dims[1]) {
+			if (lm_no > 1) {
+				length <- length + point_distance(sample_data[lm_no - 1,,specimen_no],
+					sample_data[lm_no,,specimen_no])
+			}
+		}
+		curve_lengths <- c(curve_lengths, length)
+	}
+	return(curve_lengths)
+}
+
+curve_gpa <- function(sample_data, slm_handling) {
 	if (slm_handling == "none") {
 		gpa <- gpagen(sample_data, print.progress=FALSE)
 	} else if (slm_handling == "procd") {
@@ -118,17 +144,41 @@ curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sam
 		curve_sliders <- get_curve_sliders(sample_data)
 		gpa <- gpagen(sample_data, print.progress=FALSE, curves=curve_sliders, ProcD=FALSE)
 	}
+	return(gpa)
+}
+
+curves_allometry_analysis <- function(input_dir, output_dir, slm_handling) {
+	sample_groups <- load_groups("all", input_dir)$V1
+	unique_groups <- as.character(unique(sample_groups))
+
+	for (sample_name in unique_groups) {
+		cat("\n--------------------------------------------------\n")
+		cat(paste0("Allometry analysis for ", sample_name, "\n"))
+		sample_data <- load_curves(sample_name, input_dir)
+		gpa <- curve_gpa(sample_data, slm_handling)
+		sample_gpa <- transform_pkn_to_bigtable(gpa$coords)
+		sample_lengths <- compute_lengths(sample_data)
+		eval_allometry(output_dir, sample_gpa, sample_lengths, c(sample_name), sample_name)
+	}
+}
+
+curves_variability_analysis <- function(input_dir, output_dir, slm_handling, sample_name) {
+	sample_data <- load_curves(sample_name, input_dir)
+	sample_groups <- load_groups(sample_name, input_dir)$V1
+
+	cat("Peform GPA\n")
+	gpa <- curve_gpa(sample_data, slm_handling)
 
 	cat("Store GPA\n")
 	sample_gpa <- transform_pkn_to_bigtable(gpa$coords)
-	store_gpa(sample_gpa, sample, output_dir)
+	store_gpa(sample_gpa, sample_name, output_dir)
 
 	cat("Store curves\n")
 	means <- mean_curves(sample_gpa, sample_groups)
 	store_named_curves(means$means, means$names, 'means', output_dir)
 
 	cat("Compute statistics\n")
-	statistics(output_dir, sample, sample_gpa, sample_groups)
+	statistics(output_dir, sample_name, sample_gpa, sample_groups)
 }
 
 curves_length_analysis <- function(output_dir) {
@@ -152,7 +202,7 @@ curves_length_analysis <- function(output_dir) {
 	print(summary(fit))
 
 	cat("PAIRED t-Test\n")
-	pairwise.t.test (data$length, data$group, p.adj="none")
+	pairwise.t.test(data$length, data$group, p.adj="none")
 }
 
 # sum_curve (sum (curve - mean curve)^2) / (dim * slc)
@@ -178,6 +228,7 @@ main <- function() {
 			make_option(c("--input"), default=""),
 			make_option(c("--io_error"), action="store_true", default=FALSE),
 			make_option(c("--variability"), action="store_true", default=FALSE),
+			make_option(c("--allometry"), action="store_true", default=FALSE),
 			make_option(c("--slm_handling"), action="store", default="none", help="none, procd, bende"),
 			make_option(c("--length_analysis"), action="store_true", default=FALSE)
 	);
@@ -189,6 +240,9 @@ main <- function() {
 	} else if (opt$variability) {
 		cat("VARIABILITY\n")
 		curves_variability_analysis(opt$input, opt$output, opt$slm_handling, "all")
+	} else if (opt$allometry) {
+		cat("ALLOMETRY ANALYSIS\n")
+		curves_allometry_analysis(opt$input, opt$output, opt$slm_handling)
 	} else if (opt$length_analysis) {
 		cat("CURVE LENGTH ANALYSIS\n")
 		curves_length_analysis(opt$output)
