@@ -13,10 +13,10 @@ from projects.malakrivky import io_error
 
 PARTS = {'koren_nosu': {}, 'hrbet_nosu': {"flipy": True},
          'horni_ret': {"flipy": True}, 'dolni_ret': {"flipy": True}}
-# PARTS = {'koren_nosu': {}}
-DATA_ROOT = os.path.expanduser('./data')
+
+DATA_ROOT = os.path.expanduser('./projects/malakrivky/data')
 FILE_PATTERN = r'([A-Za-z\_]+)\_(.+)\.txt'
-OUTPUT_DIR = '/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/predikce/'
+OUTPUT_DIR = os.path.expanduser('~/DB/krivky_mala/clanek/GRAFY/predikce/')
 
 
 def _GetGroups(input_dir):
@@ -63,24 +63,25 @@ def _StoreForR(output_file, groups, groupname, flipy=False):
             file.write(",".join(flat_coords) + "\n")
 
 
-def _ProccessWithR(output_dir, part_name):
+def _ProccessWithR(input_dir, output_dir, part_name):
     riface = rscriptsupport.RScripInterface(output_dir)
     riface.call_r('projects/malakrivky/pcapredict.R', [
-        "--output", re.escape(output_dir),
+        "--input", input_dir,
+        "--output", output_dir,
         "--part", re.escape(part_name)])
 
 
 def main():
-    sys.stdout = open(os.path.join(OUTPUT_DIR, "prediction_log.txt"), 'w')
+    #sys.stdout = open(os.path.join(OUTPUT_DIR, "prediction_log.txt"), 'w')
     for part_name in PARTS:
         groups = _LoadMorpho2DCurveData(os.path.join(DATA_ROOT, part_name))
         hard_key = [name for name in groups.keys() if 'hard' in name][0]
         soft_key = [name for name in groups.keys() if 'soft' in name][0]
-        _StoreForR(os.path.join(DATA_ROOT, part_name + "_hard.csv"), groups,
-                   hard_key, "flipy" in PARTS[part_name])
-        _StoreForR(os.path.join(DATA_ROOT, part_name + "_soft.csv"), groups,
-                   soft_key, "flipy" in PARTS[part_name])
-        _ProccessWithR(OUTPUT_DIR, part_name)
+        _StoreForR(os.path.join(DATA_ROOT, part_name + "_hard.csv"),
+                   groups, hard_key, "flipy" in PARTS[part_name])
+        _StoreForR(os.path.join(DATA_ROOT, part_name + "_soft.csv"),
+                   groups, soft_key, "flipy" in PARTS[part_name])
+        _ProccessWithR(DATA_ROOT, OUTPUT_DIR, part_name)
 
 
 if __name__ == "__main__":

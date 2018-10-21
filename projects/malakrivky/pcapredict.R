@@ -227,9 +227,12 @@ get_extents <- function(soft, hard) {
   return(list(ylim=c(-0.3, 0.3), xlim=c(-0.5, 0.5)))
 }
 
-pca_predict <- function(part, target_dir) {
-  soft <- load_data(paste0("data/", part, "_soft.csv"))
-  hard <- load_data(paste0("data/", part, "_hard.csv"))
+pca_predict <- function(input_dir, part, target_dir) {
+  print(input_dir)
+  print(part)
+  print(target_dir)
+  soft <- load_data(file.path(input_dir, paste0(part, "_soft.csv")))
+  hard <- load_data(file.path(input_dir, paste0(part, "_hard.csv")))
 
   # input data plots
   plot_all_profiles(soft, list(width=8, height=8, filename=file.path(target_dir, paste0('all_', part, '_soft.pdf')), xlim=c(-0.55, 0.55), ylim=c(-0.55, 0.55)))
@@ -278,18 +281,19 @@ test_plot <- function() {
 }
 
 test_predict <- function(){
-  pca_predict('koren_nosu', '/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/predikce/')
+  pca_predict('projects/krivkymala/data', 'koren_nosu', '/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/predikce/')
 }
 
 main <- function() {
   # command-line interface
   option_list = list(
+    make_option(c("--input"), default="data", action="store"),
     make_option(c("--output"), default="", action="store"),
     make_option(c("--part"), default="", action="store")
   )
 
   opt = parse_args(OptionParser(option_list=option_list))
-  pca_predict(opt$part, opt$output)
+  pca_predict(opt$input, opt$part, opt$output)
 }
 
 main()

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATAFOLDER="/home/vajicek/Dropbox/krivky_mala/clanek/GRAFY/Vstupni data_ xml a jpg a txt/"
-OUTPUTFOLDER="data"
+OUTPUTFOLDER="./projects/malakrivky/data"
 
 extract_filenames () {
   SECTION_NAME=$1
