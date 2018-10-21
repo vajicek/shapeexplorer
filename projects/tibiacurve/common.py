@@ -46,14 +46,7 @@ SLM_HANDLING = ['none', 'procd']
 
 IO_ERROR_SUBDIR = r'IO\ error'
 OUTPUT = 'output'
-#GROUP_COLORS_MAP = {'A_eneolit': (1, 0, 0),
-#                    'B_bronz': (0, 1, 0),
-#                    'C_latén': (0, 0, 1),
-#                    'D_raný středověk': (1, 1, 0),
-#                    'E_vrcholný středověk': (1, 0, 1),
-#                    'F_pachner': (0, 1, 1),
-#                    'G_angio': (0, 0, 0),
-#                    'all': (1, 1, 1)}
+
 GROUP_COLORS_MAP = {
     'eneolit males': (1, 0, 0),
     'bronz males': (0, 1, 0),
