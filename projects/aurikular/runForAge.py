@@ -16,7 +16,7 @@ PROCESSES_PER_CPU = 1
 
 @timer
 def runForAge(input, no):
-    logging.debug("pid=%s, no=%s", os.getpid(), no)
+    logging.debug("pid=%s, no=%s, input=%s", os.getpid(), no, input)
     cmd = ['java', '-jar', PATH_TO_FORAGE, '-i', input]
     result = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     return json.loads(result.stdout.read())
