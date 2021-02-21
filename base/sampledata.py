@@ -58,6 +58,13 @@ def load_obj(filename):
     return obj_reader.GetOutput()
 
 
+def load_ply(filename):
+    """ Load OBJ file with vtk reader. """
+    obj_reader = vtk.vtkPLYReader()
+    obj_reader.SetFileName(filename)
+    obj_reader.Update()
+    return obj_reader.GetOutput()
+
 def curve(polyline_data, radius=1):
     """ Get VTK tube from list of coordinates. """
     points = vtk.vtkPoints()
@@ -88,7 +95,7 @@ def load_polyline_data(polyline_data_file):
                 if dist_a_b < 1e-9:
                     logging.debug("subsequent points are two close: " + str(polyline_data[-1]) + " - " + str(vector))
                     continue
-            
+
             polyline_data.append(vector)
     return polyline_data
 
@@ -126,7 +133,7 @@ def create_balls(points, radius, color=(1, 0, 0), values=None):
         ball.SetPhiResolution(64)
         if values:
             r01 = (values[idx] - min_values) / (max_values - min_values)
-            r = r01 * (radius[1] - radius[0]) + radius[0]  
+            r = r01 * (radius[1] - radius[0]) + radius[0]
         else:
             r = radius
         ball.SetRadius(r)
@@ -148,14 +155,14 @@ def get_arrow_orintation(endPoint, startPoint, norm=[0, 0, 1]):
     math.Subtract(endPoint, startPoint, normalizedX)
     length = math.Norm(normalizedX)
     math.Normalize(normalizedX)
-     
+
     # The Z axis is an arbitrary vector cross X
     math.Cross(normalizedX, norm, normalizedZ)
     math.Normalize(normalizedZ)
-     
+
     # The Y axis is Z cross X
     math.Cross(normalizedZ, normalizedX, normalizedY)
-     
+
     # Create the direction cosine matrix
     matrix = vtk.vtkMatrix4x4()
     matrix.Identity()
@@ -180,14 +187,14 @@ def create_arrows(points, radius, color, other_points):
         transform.Concatenate(orientation)
         length *= radius
         transform.Scale(length, length, length)
- 
+
         transformFilter = vtk.vtkTransformPolyDataFilter()
         transformFilter.SetInputConnection(arrowSource.GetOutputPort())
         transformFilter.SetTransform(transform)
         transformFilter.Update()
 
         arrows.append(dict(dat=transformFilter, col=color))
-        
+
     return arrows
 
 

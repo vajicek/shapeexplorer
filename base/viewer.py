@@ -7,10 +7,10 @@ def ButtonEvent(obj, event):
     camera = renWin.GetRenderers().GetFirstRenderer().GetActiveCamera()
     print(camera)
 
-        
+
 class Viewer(object):
     """Viewer class, render off-screen or to window"""
-    
+
     DEFAULT_SIZE = (300, 300)
     DEFAULT_CAMERA_POS = (1, 1, 1)
     DEFAULT_CAMERA_FP = (0, 0, 0)
