@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 """ Visualize and analyze auricular shape. """
+
 import glob
 import logging
 import math
