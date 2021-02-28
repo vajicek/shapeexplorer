@@ -1,8 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Page Title</title>
+<style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 4px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+
+.scatterplot {
+  width: 32%;
+}
+
+.histogram {
+  width: 90%;
+}
+</style>
+</head>
+<body>
+{% macro table(_cols, _dataframe, _shortened) -%}
+  <table>
+    <tr>
+    {% for col in _cols %}
+      <th>{{ col }}</th>
+    {% endfor %}
+    </tr>
+    {% for i in _dataframe.index %}
+      {% if not shortened or (loop.index < 3 or loop.index > loop.length - 3) %}
+        <tr>
+        {% for col in _cols %}
+          <td>{{ _dataframe[col][i] }}</td>
+          <!-- td>{{ "%.5f"|format(_dataframe[col][i]| float) }}</td -->
+        {% endfor %}
+        </tr>
+      {% elif loop.index == 3 %}
+        <tr><td colspan={{ _cols|length }}>... <i>total count {{loop.length}}</i></td></tr>
+      {% endif%}
+    {% endfor %}
+  </table>
+{%- endmacro %}
+
 <H1>{{ project_name }}</H1>
 date: {{ today }}
 
 <H2>Sample</H2>
 
+<img class='histogram' src="{{ analysis_result['age_histogram']['filename'] }}"/>
+
+<h3>age stats</h3>
+<pre>{{ describe['age'] }}</pre>
+
+<h3>sex stats</h3>
+<pre>{{ describe['sex'] }}</pre>
+
+<h3>side stats</h3>
+<pre>{{ describe['side'] }}</pre>
+
+{{ table(sample_cols, dataframe, shortened) }}
+
 <H2>Descriptors</H2>
 
+{% for figure in analysis_result['age_descriptor'] %}
+  <img class='scatterplot' src="{{ figure['filename'] }}"/>
+{% endfor %}
+
+{{ table(descriptors_cols, dataframe, shortened) }}
+
 <H2>Models</H2>
+
+{{ table(predicted_cols, dataframe, shortened) }}
+
+<br/>
+
+<table>
+  <tr>
+    <th>descriptors</th>
+    <th>subset</th>
+    <th>rmse</th>
+    <th>bias</th>
+    <th>inaccuracy</th>
+    <th>pvalue</th>
+  </tr>
+  {% for model in analysis_result['model_results'] %}
+    <tr>
+      <td>{{ model['indep'] }}</td>
+      <td>{{ model['subset'] }}</td>
+      <td>{{ "%.5f"|format(model['rmse']| float) }}</td>
+      <td>{{ "%.5f"|format(model['bias']| float) }}</td>
+      <td>{{ "%.5f"|format(model['inaccuracy']| float) }}</td>
+      <td>{{ "%.5f"|format(model['pvalue']| float) }}</td>
+    </tr>
+  {% endfor %}
+</table>
+
+</body>
+</html>
