@@ -57,11 +57,38 @@ class Report:
 
         html = generateHtml(template, data)
 
-        #open(self.getOutputFile('index.html'),'w').write(html)
-
         generatePdf(html, self.getOutputFile('report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
+
+    def generateList(self):
+        template_file = os.path.join(os.path.dirname(__file__), "list.jinja2")
+        template = getTemplate(template_file)
+
+        dataframe = loadData(self.getOutputFile('sample_estimates.csv'))
+
+        images = []
+        for i in dataframe.index:
+            imagefile = dataframe['name'][i] + '_aur_'
+            imagefile = imagefile + dataframe['side'][i] + '_'
+            imagefile = imagefile + dataframe['sex'][i]
+            imagefile = imagefile + str(dataframe['age'][i])
+            imagefile = imagefile + '.png'
+            images.append(imagefile)
+        dataframe['imagefile'] = images
+
+        dataframe = dataframe.sort_values('age')
+
+        now = datetime.datetime.now()
+        data = {
+            "today": now,
+            "project_name": os.path.dirname(__file__),
+            "dataframe": dataframe,
+        }
+
+        html = generateHtml(template, data)
+        open(self.getOutputFile('list.html'), 'w').write(html)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     report = Report('../output')
     report.generateReport()
+    report.generateList()

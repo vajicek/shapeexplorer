@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>List</title>
+</head>
+<body>
+
+<H1>{{ project_name }}</H1>
+date: {{ today }}
+
+<H2>Sample</H2>
+
+{% for i in dataframe.index %}
+  <img src="{{ dataframe['imagefile'][i] }}"/> <br/>
+{% endfor %}
+
+</body>
+</html>
