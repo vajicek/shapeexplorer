@@ -53,10 +53,6 @@ def _modelPredictions(dataframe, model, indep, dep):
 
     return _modelStatistics(X, y, indep)
 
-
-def _loadData(filename):
-    return pd.read_csv(filename, sep=',', quotechar='"')
-
 def _saveData(dataframe, filename):
     return dataframe.to_csv(filename, sep=',', quotechar='"')
 
@@ -112,8 +108,11 @@ def _genAgeHistogram(folder, dataframe):
     plt.savefig(output_filepath, dpi=100)
     return {'filename': filename}
 
+def loadData(filename):
+    return pd.read_csv(filename, sep=',', quotechar='"')
+
 def analyze(folder):
-    dataframe = _loadData(os.path.join(folder, DESCRIPTORS))
+    dataframe = loadData(os.path.join(folder, DESCRIPTORS))
 
     _addLogColumns(dataframe, [('age', 'logAge'), ('BE', 'logBE'), ('SAH', 'logSAH')])
 

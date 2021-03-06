@@ -88,7 +88,7 @@ class Report:
             "dataframe": dataframe,
         }
 
-        html = generateHtml(template, data)
+        html = _generateHtml(template, data)
         open(self._getOutputFile('list.html'), 'w').write(html)
 
 if __name__ == "__main__":
