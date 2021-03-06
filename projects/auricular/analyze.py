@@ -16,6 +16,8 @@ from sklearn.metrics import mean_squared_error
 
 import statsmodels.api as sm
 
+from common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
+
 def predictionColName(indep, dep, type='loo'):
     return type + '_' + ("_".join(dep)) + "_by_" + ('_'.join(indep))
 
@@ -92,37 +94,40 @@ def evaluateAllModels(dataframe):
             results.append(model_stats)
     return results
 
-def genAgeDescriptorPlots(dataframe):
+def genAgeDescriptorPlots(folder, dataframe):
     plots=[]
     for x in ['BE', 'SAH', 'VC']:
         filename = 'scatter_' + x + '.png'
-        output_filepath = os.path.join('../output/', filename)
+        output_filepath = os.path.join(folder, filename)
         plots.append({'filename': filename})
         dataframe.plot.scatter(x=x, y='age')
         plt.savefig(output_filepath, dpi=100)
     return plots
 
-def genAgeHistogram(dataframe):
+def genAgeHistogram(folder, dataframe):
     plt.figure(figsize=(10, 3))
     dataframe['age'].hist()
     filename = 'age_histogram.png'
-    output_filepath = os.path.join('../output/', filename)
+    output_filepath = os.path.join(folder, filename)
     plt.savefig(output_filepath, dpi=100)
     return {'filename': filename}
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    dataframe = loadData('../output/sample_descriptors.csv')
+def analyze(folder):
+    dataframe = loadData(os.path.join(folder, DESCRIPTORS))
 
     addLogColumns(dataframe, [('age', 'logAge'), ('BE', 'logBE'), ('SAH', 'logSAH')])
 
-    age_histogram = genAgeHistogram(dataframe)
-    age_descriptor = genAgeDescriptorPlots(dataframe)
+    age_histogram = genAgeHistogram(folder, dataframe)
+    age_descriptor = genAgeDescriptorPlots(folder, dataframe)
     model_results = evaluateAllModels(dataframe)
     analysis_result = dict(
         model_results=model_results,
         age_descriptor=age_descriptor,
         age_histogram=age_histogram)
 
-    saveData(dataframe, "../output/sample_estimates.csv")
-    pickle.dump(analysis_result, open("../output/analysis_result.pickle", 'wb'))
+    saveData(dataframe, os.path.join(folder, ESTIMATES))
+    pickle.dump(analysis_result, open(os.path.join(folder, ANALYSIS), 'wb'))
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    analyze(OUTPUT)

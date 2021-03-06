@@ -12,6 +12,9 @@ from jinja2 import Template
 
 from analyze import loadData
 
+from common import OUTPUT, SAMPLE, ESTIMATES, ANALYSIS
+from common import REPORT_TEMPLATE, LIST_TEMPLATE, getTemplateFile
+
 def generatePdf(html, filename, base_url):
     html = HTML(string=html, base_url=base_url)
     html.write_pdf(filename)
@@ -31,12 +34,11 @@ class Report:
         return os.path.join(self.output_dir, filename)
 
     def generateReport(self):
-        template_file = os.path.join(os.path.dirname(__file__), "report.jinja2")
-        template = getTemplate(template_file)
+        template = getTemplate(getTemplateFile(REPORT_TEMPLATE))
 
-        dataframe = loadData(self.getOutputFile('sample_estimates.csv'))
+        dataframe = loadData(self.getOutputFile(ESTIMATES))
 
-        analysis_result = pickle.load(open(self.getOutputFile('analysis_result.pickle'), 'rb'))
+        analysis_result = pickle.load(open(self.getOutputFile(ANALYSIS), 'rb'))
 
         now = datetime.datetime.now()
         data = {
@@ -60,10 +62,9 @@ class Report:
         generatePdf(html, self.getOutputFile('report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
 
     def generateList(self):
-        template_file = os.path.join(os.path.dirname(__file__), "list.jinja2")
-        template = getTemplate(template_file)
+        template = getTemplate(getTemplateFile(LIST_TEMPLATE))
 
-        dataframe = loadData(self.getOutputFile('sample_estimates.csv'))
+        dataframe = loadData(self.getOutputFile(ESTIMATES))
 
         images = []
         for i in dataframe.index:
@@ -89,6 +90,6 @@ class Report:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    report = Report('../output')
+    report = Report(OUTPUT)
     report.generateReport()
     report.generateList()

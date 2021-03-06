@@ -10,12 +10,17 @@ import re
 from base import sampledata
 from base import viewer
 from base.common import timer
-from runForAge import runForAge, runForAgeOnFiles
 
-OUTPUT = "../output"
-DATAFOLDER = "~/data/aurikularni_plocha_ply/"
+from runForAge import runForAge, runForAgeOnFiles
+from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS
+
+
 RESOLUTION = (1024, 1024)
-FILENAME_PATTERN = re.compile(r'.*/(.*)_(aur)_(dex|sin)_(F|M)([0-9]*)')
+FILENAME_PATTERN = re.compile(r'.*/(.*)(S|Cr|Th|Co1|Co2)_(aur)_(dex|sin)_(F|M)([0-9]*)')
+
+# ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/466co2_aur_dex_M44.ply
+# ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/114co2_aur_sin_M32.ply
+# ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/804-58_4811th_aur_sin_F37.ply
 
 def get_mesh_data(filename):
     mesh = sampledata.load_ply(filename)
@@ -36,13 +41,13 @@ def parse_name(filename):
     return {'basename': os.path.basename(filename),
         'filename': filename,
         'name': match.group(1),
-        'type': match.group(2),
-        'side': match.group(3),
-        'sex': match.group(4),
-        'age': match.group(5)
+        'subset': match.group(2),
+        'type': match.group(3),
+        'side': match.group(4),
+        'sex': match.group(5),
+        'age': match.group(6)
     }
 
-@timer
 def get_sample(input_folder, output):
     ply_files_glob = os.path.join(os.path.expanduser(input_folder), "*.ply")
     specimens = []
@@ -66,20 +71,6 @@ def generate_images(input_sample, force=False):
             render_to_file(output_filename, mesh)
     return sample
 
-@timer
-def generate_image_grid(sample):
-    with open(os.path.join(sample['output'], 'index.html'), 'w') as html:
-        for specimen in sample['specimens']:
-            html.write('%s, %s, %s, %s, %s<br/>\n' % (specimen['name'],
-                specimen['sex'],
-                specimen['age'],
-                specimen['side'],
-                specimen['basename']))
-            relative_path = os.path.relpath(specimen['output'], sample['output'])
-            html.write('<img src="%s"/>\n' % relative_path)
-            html.write('<br/>\n')
-
-@timer
 def generate_csv(sample, filename, columns):
     with open(os.path.join(sample['output'], filename), 'w') as csv:
         csv.write('%s\n' % ",".join(columns))
@@ -95,11 +86,14 @@ def run_forAge_on_sample(input_sample):
         specimen.update(result)
     return sample
 
+@timer
+def preprocessing(input, output):
+    sample = get_sample(input, output)
+    sample = generate_images(sample)
+    generate_csv(sample, SAMPLE, ('name', 'sex', 'age', 'side', 'basename'))
+    sample = run_forAge_on_sample(sample)
+    generate_csv(sample, DESCRIPTORS, ('name', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    sample = get_sample(DATAFOLDER, OUTPUT)
-    sample = generate_images(sample)
-    generate_image_grid(sample)
-    generate_csv(sample, 'sample.csv', ('name', 'sex', 'age', 'side', 'basename'))
-    sample = run_forAge_on_sample(sample)
-    generate_csv(sample, 'sample_descriptors.csv', ('name', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
+    preprocessing(DATAFOLDER, OUTPUT)
