@@ -9,7 +9,3 @@ ANALYSIS = 'analysis_result.pickle'
 
 REPORT_TEMPLATE = "report.jinja2"
 LIST_TEMPLATE = "list.jinja2"
-
-
-def getTemplateFile(filename):
-    return os.path.join(os.path.dirname(__file__), filename)

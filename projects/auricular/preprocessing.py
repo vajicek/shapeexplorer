@@ -22,11 +22,11 @@ FILENAME_PATTERN = re.compile(r'.*/(.*)(S|Cr|Th|Co1|Co2)_(aur)_(dex|sin)_(F|M)([
 # ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/114co2_aur_sin_M32.ply
 # ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/804-58_4811th_aur_sin_F37.ply
 
-def get_mesh_data(filename):
+def _get_mesh_data(filename):
     mesh = sampledata.load_ply(filename)
     return [dict(dat=mesh, col=(0.5, 0.5, 0.5))]
 
-def render_to_file(filename, mesh):
+def _render_to_file(filename, mesh):
     bounds = mesh[0]["dat"].GetBounds()
     scale = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4]) / 2
     v = viewer.Viewer(mesh, size=RESOLUTION)
@@ -34,7 +34,7 @@ def render_to_file(filename, mesh):
     v.set_camera(position=(0, 0, 100), parallel_scale=scale)
     v.render()
 
-def parse_name(filename):
+def _parse_name(filename):
     match = FILENAME_PATTERN.match(filename)
     if not match:
         return None
@@ -48,11 +48,11 @@ def parse_name(filename):
         'age': match.group(6)
     }
 
-def get_sample(input_folder, output):
+def _get_sample(input_folder, output):
     ply_files_glob = os.path.join(os.path.expanduser(input_folder), "*.ply")
     specimens = []
     for abs_filename in glob.glob(ply_files_glob):
-        specimen = parse_name(abs_filename)
+        specimen = _parse_name(abs_filename)
         if not specimen:
             logging.error("Failed to parse filename: %s", abs_filename)
         else:
@@ -60,18 +60,18 @@ def get_sample(input_folder, output):
     return {'specimens': specimens, 'output': output}
 
 @timer
-def generate_images(input_sample, force=False):
+def _generate_images(input_sample, force=False):
     sample = input_sample.copy()
     for specimen in sample['specimens']:
         png_filename = os.path.splitext(specimen['basename'])[0] + ".png"
         output_filename = os.path.join(sample["output"], png_filename)
         specimen['output'] = output_filename
         if not os.path.exists(output_filename) or force:
-            mesh = get_mesh_data(specimen['filename'])
-            render_to_file(output_filename, mesh)
+            mesh = _get_mesh_data(specimen['filename'])
+            _render_to_file(output_filename, mesh)
     return sample
 
-def generate_csv(sample, filename, columns):
+def _generate_csv(sample, filename, columns):
     with open(os.path.join(sample['output'], filename), 'w') as csv:
         csv.write('%s\n' % ",".join(columns))
         for specimen in sample['specimens']:
@@ -79,7 +79,7 @@ def generate_csv(sample, filename, columns):
             csv.write('%s\n' % ",".join(values))
 
 @timer
-def run_forAge_on_sample(input_sample):
+def _run_forAge_on_sample(input_sample):
     sample = input_sample.copy()
     results = runForAgeOnFiles([specimen['filename'] for specimen in sample['specimens']])
     for result, specimen in zip(results, sample['specimens']):
@@ -88,11 +88,11 @@ def run_forAge_on_sample(input_sample):
 
 @timer
 def preprocessing(input, output):
-    sample = get_sample(input, output)
-    sample = generate_images(sample)
-    generate_csv(sample, SAMPLE, ('name', 'sex', 'age', 'side', 'basename'))
-    sample = run_forAge_on_sample(sample)
-    generate_csv(sample, DESCRIPTORS, ('name', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
+    sample = _get_sample(input, output)
+    sample = _generate_images(sample)
+    _generate_csv(sample, SAMPLE, ('name', 'sex', 'age', 'side', 'basename'))
+    sample = _run_forAge_on_sample(sample)
+    _generate_csv(sample, DESCRIPTORS, ('name', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
