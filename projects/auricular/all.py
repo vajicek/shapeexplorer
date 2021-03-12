@@ -10,7 +10,7 @@ from report import Report
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    preprocessing(DATAFOLDER, OUTPUT)
+    # preprocessing(DATAFOLDER, OUTPUT)
     analyze(OUTPUT)
     report = Report(OUTPUT)
     report.generateReport()

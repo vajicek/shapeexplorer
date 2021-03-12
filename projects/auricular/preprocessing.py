@@ -90,9 +90,9 @@ def _run_forAge_on_sample(input_sample):
 def preprocessing(input, output):
     sample = _get_sample(input, output)
     sample = _generate_images(sample)
-    _generate_csv(sample, SAMPLE, ('name', 'sex', 'age', 'side', 'basename'))
+    _generate_csv(sample, SAMPLE, ('name', 'subset', 'sex', 'age', 'side', 'basename'))
     sample = _run_forAge_on_sample(sample)
-    _generate_csv(sample, DESCRIPTORS, ('name', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
+    _generate_csv(sample, DESCRIPTORS, ('basename', 'name', 'subset', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

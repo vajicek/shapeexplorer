@@ -46,7 +46,7 @@ class Report:
         now = datetime.datetime.now()
         data = {
             "today": now,
-            "project_name": os.path.dirname(__file__),
+            "project_name": os.path.basename(os.path.dirname(__file__)),
             "dataframe": dataframe,
             "sample_cols": ("name", "sex", "age", "side"),
             "descriptors_cols": ("name", "age", "BE", "SAH", "VC"),
@@ -54,9 +54,10 @@ class Report:
             "shortened": True,
             "analysis_result": analysis_result,
             "describe": {
-                "side": dataframe['side'].describe(),
-                "sex": dataframe['sex'].describe(),
+                "side": dataframe['side'].value_counts(),
+                "sex": dataframe['sex'].value_counts(),
                 "age": dataframe['age'].describe(),
+                "subset": dataframe['subset'].value_counts(),
             }
         }
 
@@ -71,11 +72,7 @@ class Report:
 
         images = []
         for i in dataframe.index:
-            imagefile = dataframe['name'][i] + '_aur_'
-            imagefile = imagefile + dataframe['side'][i] + '_'
-            imagefile = imagefile + dataframe['sex'][i]
-            imagefile = imagefile + str(dataframe['age'][i])
-            imagefile = imagefile + '.png'
+            imagefile = os.path.splitext(dataframe['basename'][i])[0] + ".png"
             images.append(imagefile)
         dataframe['imagefile'] = images
 

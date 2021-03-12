@@ -14,6 +14,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import mean_squared_error
 
+import scipy.stats as stat
+
 import statsmodels.api as sm
 
 from common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
@@ -42,6 +44,13 @@ def _modelStatistics(X, y, indep):
     results = model.fit()
     return dict(pvalue=results.pvalues[indep].values[0])
 
+def _getPvalue(fit, X, y):
+    sse = np.sum((fit.predict(X) - y) ** 2, axis=0) / float(X.shape[0] - X.shape[1])
+    se = np.array([np.sqrt(np.diagonal(sse * np.linalg.inv(np.dot(X.T, X))))])
+    t = fit.coef_ / se
+    p = (2 * (1 - stat.t.cdf(np.abs(t), y.shape[0] - X.shape[1])))
+    return p[0]
+
 def _modelPredictions(dataframe, model, indep, dep):
     prediction_column = _predictionColName(indep, dep, 'train')
     X = dataframe[indep]
@@ -51,7 +60,8 @@ def _modelPredictions(dataframe, model, indep, dep):
     prediction = fit.predict(dataframe[indep])
     dataframe[prediction_column] = np.exp(prediction)
 
-    return _modelStatistics(X, y, indep)
+    #return _modelStatistics(X, y, indep)
+    return dict(pvalue=_getPvalue(fit, X, y.values.ravel()))
 
 def _saveData(dataframe, filename):
     return dataframe.to_csv(filename, sep=',', quotechar='"')
@@ -88,15 +98,30 @@ def _evaluateAllModels(dataframe):
             model_stats = _evaluateModel(dataframe, indep)
             model_stats.update(dict(indep=indep, subset=subset))
             results.append(model_stats)
+
+        # add benchmark - mean age
+        age = dataframe['age']
+        model_stats = dict(pvalue=0)
+        model_stats.update(_computeStatistics(age, np.array([age.mean()] * len(age))))
+        model_stats.update(dict(indep=['mean'], subset=subset))
+        results.append(model_stats)
+
+        # add benchmark - random age
+        model_stats = dict(pvalue=0)
+        random_age = np.random.normal(loc=age.mean(), scale=age.std(), size=len(age))
+        model_stats.update(_computeStatistics(age, random_age))
+        model_stats.update(dict(indep=['random'], subset=subset))
+        results.append(model_stats)
+
     return results
 
 def _genAgeDescriptorPlots(folder, dataframe):
     plots=[]
-    for x in ['BE', 'SAH', 'VC']:
+    for x in ['BE', 'SAH', 'VC', 'logBE', 'logSAH']:
         filename = 'scatter_' + x + '.png'
         output_filepath = os.path.join(folder, filename)
         plots.append({'filename': filename})
-        dataframe.plot.scatter(x=x, y='age')
+        dataframe.plot.scatter(x='age', y=x)
         plt.savefig(output_filepath, dpi=100)
     return plots
 

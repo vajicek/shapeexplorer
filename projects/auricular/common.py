@@ -1,6 +1,9 @@
+""" Common constants for the project. """
+
+import os
 
 OUTPUT = "../output"
-DATAFOLDER = "~/data/aurikularni_plocha_ply/"
+DATAFOLDER = os.path.expanduser("~/data/aurikularni_plocha_ply/")
 
 SAMPLE = 'sample.csv'
 DESCRIPTORS = 'sample_descriptors.csv'

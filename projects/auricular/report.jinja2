@@ -40,8 +40,15 @@ tr:nth-child(even) {
       {% if not shortened or (loop.index < 3 or loop.index > loop.length - 3) %}
         <tr>
         {% for col in _cols %}
-          <td>{{ _dataframe[col][i] }}</td>
-          <!-- td>{{ "%.5f"|format(_dataframe[col][i]| float) }}</td -->
+          <td>
+          {% if _dataframe[col][i]|int == _dataframe[col][i] %}
+            {{ _dataframe[col][i] }}
+          {% elif _dataframe[col][i]|float(-123) != -123 %}
+            {{ "%.5f"|format(_dataframe[col][i]| float) }}
+          {% else %}
+            {{ _dataframe[col][i] }}
+          {% endif %}
+          </td>
         {% endfor %}
         </tr>
       {% elif loop.index == 3 %}
@@ -66,6 +73,9 @@ date: {{ today }}
 
 <h3>side stats</h3>
 <pre>{{ describe['side'] }}</pre>
+
+<h3>subset stats</h3>
+<pre>{{ describe['subset'] }}</pre>
 
 {{ table(sample_cols, dataframe, shortened) }}
 
@@ -101,7 +111,8 @@ date: {{ today }}
       <td>{{ "%.5f"|format(model['rmse']| float) }}</td>
       <td>{{ "%.5f"|format(model['bias']| float) }}</td>
       <td>{{ "%.5f"|format(model['inaccuracy']| float) }}</td>
-      <td>{{ "%.5f"|format(model['pvalue']| float) }}</td>
+      <!-- <td>{{ "%.5f"|format(model['pvalue']| float) }}</td> -->
+      <td>{{ model['pvalue'] }}</td>
     </tr>
   {% endfor %}
 </table>
