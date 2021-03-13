@@ -3,8 +3,11 @@
 """ Preprocess auricular shape. """
 
 import logging
+import gc
 import os
+import multiprocessing as mp
 import numpy as np
+
 from base import sampledata
 from base import viewer
 from base.common import timer
@@ -14,12 +17,17 @@ import matplotlib.pyplot as plt
 from runForAge import runForAge, runForAgeOnFiles
 from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS
 
+from scipy.ndimage import distance_transform_edt, binary_fill_holes
+
 import trimesh
 from trimesh.viewer import windowed
+
+PROCESSES_PER_CPU = 1
 
 RESOLUTION = (1024, 1024)
 
 old = os.path.join(DATAFOLDER, "96Cr_aur_dex_F101.ply")
+old2 = os.path.join(DATAFOLDER, "54Co1_aur_dex_F97.ply")
 young = os.path.join(DATAFOLDER, "LAU_13S_aur_sin_M18.ply")
 
 
@@ -103,18 +111,89 @@ def fftAnalysis(prefix, meshfile, subrange):
     return heightmap_fft
 
 
+def fftDescriptorHeightmap(heightmap):
+    return 0
+    heightmap_fft = np.fft.fftshift(np.fft.fft2(heightmap))
+
+    n = heightmap.shape[0]
+    h = int(n / 4)
+    heightmap_fft[2 * h, 2 * h] = 0
+    low = np.sum(np.abs(heightmap_fft[h:3 * h, h:3 * h]))
+    heightmap_fft[h:3 * h, h:3 * h] = 0
+    high = np.sum(np.abs(heightmap_fft))
+    return low / high
+
+
+def patchFftDescriptor(meshfile, subrange, n=256):
+    mesh = trimesh.load_mesh(meshfile)
+    heightmap = getHeightmap(mesh, n, subrange)
+    return fftDescriptor(heightmap)
+
+def findPatch(meshfile):
+    mesh = trimesh.load_mesh(meshfile)
+
+    heightmap = getHeightmap(mesh, 128)
+
+    mask = heightmap > 0
+
+    filled = binary_fill_holes(mask)
+
+    edt = distance_transform_edt(filled)
+
+    a = edt.max()
+    coord = np.unravel_index(edt.argmax(), edt.shape)
+
+    return heightmap, a, coord
+
+
+def extractHeightmap(heightmap, a, coord):
+    a2 = int(a / 2)
+    area = heightmap[(coord[0] - a2):(coord[0] + a2),
+                     (coord[1] - a2):(coord[1] + a2)]
+    return area
+
+
+def fftDescriptorInternal(filename, no):
+    logging.debug("pid=%s, no=%s, input=%s", os.getpid(), no, input)
+    heightmap, a, coord = findPatch(filename)
+    heightmap_area = extractHeightmap(heightmap, a, coord)
+    return fftDescriptorHeightmap(heightmap_area)
+
+
+def fftDescriptor(filename, no):
+    fftd = fftDescriptorInternal(filename, no)
+    gc.collect()
+    return {'fftd': fftd}
+
+
+@timer
+def runFftDescriptorOnFiles(inputs):
+    with mp.Pool(processes=mp.cpu_count() * PROCESSES_PER_CPU) as pool:
+        async_results = [pool.apply_async(
+            fftDescriptor, (input, i)) for input, i in zip(inputs, range(len(inputs)))]
+        results = [async_result.get() for async_result in async_results]
+    return results
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    mesh = trimesh.load_mesh(old)
-    heightmap = getHeightmap(mesh, 256)
-    plt.imshow(heightmap)
-    plt.savefig('heightmap.png')
+    print(fftDescriptor(old))
+    print(fftDescriptor(old2))
+    print(fftDescriptor(young))
 
-    f1 = fftAnalysis('old_', old, [[0.55, 0.55, 0], [0.75, 0.75, 1]])
-    f2 = fftAnalysis('young_', young, [[0.4, 0.4, 0], [0.6, 0.6, 1]])
+    # fftDescriptor(old, [[0.55, 0.55, 0], [0.75, 0.75, 1]])
+    # fftDescriptor(young, [[0.4, 0.4, 0], [0.6, 0.6, 1]])
 
-    fftImg(f1 / f2, 'fft_diff.png')
+    # mesh = trimesh.load_mesh(old)
+    # heightmap = getHeightmap(mesh, 256)
+    # plt.imshow(heightmap)
+    # plt.savefig('heightmap.png')
+
+    # f1 = fftAnalysis('old_', old, [[0.55, 0.55, 0], [0.75, 0.75, 1]])
+    # f2 = fftAnalysis('young_', young, [[0.4, 0.4, 0], [0.6, 0.6, 1]])
+    #
+    # fftImg(f1 / f2, 'fft_diff.png')
 
     # samples = sample(mesh, 50)
     #
@@ -126,5 +205,5 @@ if __name__ == "__main__":
     # print(old)
     # _view([dict(dat=mesh, col=(0.5, 0.5, 0.5))])
 
-    #samples = sample(mesh)
-    #coefs = fft(samples)
+    # samples = sample(mesh)
+    # coefs = fft(samples)
