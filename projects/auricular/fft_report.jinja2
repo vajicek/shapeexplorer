@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>FFT descriptors report</title>
+</head>
+<body>
+
+<H1>{{ project_name }}</H1>
+date: {{ today }}
+
+<H2>FFT Descriptors</H2>
+
+<H3>Automatic area extraction</H2>
+
+<p>
+<img src="_heightmap.png"/></br>
+Height map, i.e. distances in direction orthogonal to the surface.
+</p>
+
+<p>
+<img src="_pixels_to_interpolate.png"/></br>
+Holes in the mesh (scipy.ndimage.binary_fill_holes)
+</p>
+
+<p>
+<img src="_interpolated_holes.png"/></br>
+Values in holes interpolated from neighbourhood (rasterio.fill.fillnodata).
+</p>
+
+<p>
+<img src="_edt.png"/></br>
+Looking for center of the surface, allowing to capture
+the largest square surface (scipy.ndimage.distance_transform_edt).
+</p>
+
+<p>
+<img src="fft/362-2721_42Th_aur_dex_F67.ply_area.png"/>
+A square found by the algorithm. Square surface frequency spectrum is analyzed further.
+</p>
+
+<H3>Frequency analysis</H2>
+
+<p>
+<img src="_1dfft_0.png"/></br>
+2D fft accumulated (except DC component) to 1D fft buffer (while direction component was neglected).
+X-axis frequency, Y-axis accumulated coefficients.
+</p>
+
+<H3>Descriptor vs. age</H2>
+
+<p>
+<img src="_1dfft.png"/></br>
+All 1D fft buffers. Blue are speciments younger than 50 years. Red are specimens 50 old or older.
+</p>
+
+<p>
+<img src="_age_fftd.png"/></br>
+A descriptor value on y-axis, age on x-axis. The descriptor is a sum of high
+frequencies (second 1/4 of 1D buffers) divided by a sum of low frequencies
+(first 1/4 of 1D buffer). In theory it should go up with age.
+</p>
+
+</body>
+</html>

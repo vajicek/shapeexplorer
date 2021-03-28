@@ -2,22 +2,18 @@
 
 """ Preprocess auricular shape. """
 
-import glob
 import logging
 import math
 import os
-import re
 from base import sampledata
 from base import viewer
 from base.common import timer
 
 from runForAge import runForAge, runForAgeOnFiles
-from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS
+from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
 from fourierdescriptors import runFftDescriptorOnFiles
 
 RESOLUTION = (1024, 1024)
-FILENAME_PATTERN = re.compile(
-    r'.*/(.*)(S|Cr|Th|Co1|Co2)_(aur)_(dex|sin)_(F|M)([0-9]*)')
 
 # ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/466co2_aur_dex_M44.ply
 # ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/114co2_aur_sin_M32.ply
@@ -39,26 +35,9 @@ def _render_to_file(filename, mesh):
     v.render()
 
 
-def _parse_name(filename):
-    match = FILENAME_PATTERN.match(filename)
-    if not match:
-        return None
-    return {'basename': os.path.basename(filename),
-            'filename': filename,
-            'name': match.group(1),
-            'subset': match.group(2),
-            'type': match.group(3),
-            'side': match.group(4),
-            'sex': match.group(5),
-            'age': match.group(6)
-            }
-
-
 def _get_sample(input_folder, output):
-    ply_files_glob = os.path.join(os.path.expanduser(input_folder), "*.ply")
     specimens = []
-    for abs_filename in glob.glob(ply_files_glob):
-        specimen = _parse_name(abs_filename)
+    for specimen in get_sample(input_folder, output):
         if not specimen:
             logging.error("Failed to parse filename: %s", abs_filename)
         else:
@@ -101,10 +80,23 @@ def _run_forAge_on_sample(input_sample):
 def _run_fftdescriptors_on_sample(input_sample):
     sample = input_sample.copy()
     results = runFftDescriptorOnFiles([specimen['filename']
-                                       for specimen in sample['specimens']])
+                                       for specimen in sample['specimens'][0:10]])
     for result, specimen in zip(results, sample['specimens']):
         specimen.update(result)
     return sample
+
+# import matplotlib.pyplot as plt
+# import pandas as pd
+#
+# def _genAgeDescriptorPlots(folder, dataframe):
+#     plots=[]
+#     for x in ['fftd']:
+#         filename = 'scatter_' + x + '.png'
+#         output_filepath = os.path.join(folder, filename)
+#         plots.append({'filename': filename})
+#         dataframe.plot.scatter(x='age', y=x)
+#         plt.savefig(output_filepath, dpi=100)
+#     return plots
 
 
 @timer
@@ -116,7 +108,11 @@ def preprocessing(input, output):
     sample = _run_fftdescriptors_on_sample(sample)
     #sample = _run_forAge_on_sample(sample)
     _generate_csv(sample, DESCRIPTORS, ('basename', 'name',
-                                        'subset', 'sex', 'age', 'side', 'BE', 'SAH', 'VC'))
+                                        'subset', 'sex', 'age', 'side', 'BE', 'SAH', 'VC', 'fftd'))
+
+    # frame = pd.read_csv(os.path.join(sample['output'], DESCRIPTORS), sep=',', quotechar='"')
+    # _genAgeDescriptorPlots(sample['output'], frame)
+    # print(frame)
 
 
 if __name__ == "__main__":

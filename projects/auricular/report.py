@@ -13,7 +13,7 @@ from jinja2 import Template
 from analyze import loadData
 
 from common import OUTPUT, SAMPLE, ESTIMATES, ANALYSIS
-from common import REPORT_TEMPLATE, LIST_TEMPLATE
+from common import REPORT_TEMPLATE, LIST_TEMPLATE, FFT_REPORT_TEMPLATE
 
 def _generatePdf(html, filename, base_url):
     html = HTML(string=html, base_url=base_url)
@@ -81,12 +81,26 @@ class Report:
         now = datetime.datetime.now()
         data = {
             "today": now,
-            "project_name": os.path.dirname(__file__),
+            "project_name": os.path.basename(os.path.dirname(__file__)),
             "dataframe": dataframe,
         }
 
         html = _generateHtml(template, data)
         open(self._getOutputFile('list.html'), 'w').write(html)
+
+    def generateFft(self):
+        template = _getTemplate(_getTemplateFile(FFT_REPORT_TEMPLATE))
+
+        now = datetime.datetime.now()
+        data = {
+            "today": now,
+            "project_name": os.path.basename(os.path.dirname(__file__)),
+        }
+
+        html = _generateHtml(template, data)
+
+        _generatePdf(html, self._getOutputFile('fft_report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

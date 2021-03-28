@@ -8,46 +8,33 @@ import os
 import multiprocessing as mp
 import numpy as np
 
-from base import sampledata
-from base import viewer
 from base.common import timer
 
 import matplotlib.pyplot as plt
 
 from runForAge import runForAge, runForAgeOnFiles
-from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS
+from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
+from report import Report
 
 from scipy.ndimage import distance_transform_edt, binary_fill_holes
 
+from rasterio.fill import fillnodata
+
 import trimesh
-from trimesh.viewer import windowed
 
 PROCESSES_PER_CPU = 1
 
-RESOLUTION = (1024, 1024)
-
-old = os.path.join(DATAFOLDER, "96Cr_aur_dex_F101.ply")
-old2 = os.path.join(DATAFOLDER, "54Co1_aur_dex_F97.ply")
-young = os.path.join(DATAFOLDER, "LAU_13S_aur_sin_M18.ply")
-
-
-def _view(mesh):
-    bounds = mesh[0]["dat"].GetBounds()
-    scale = max(bounds[1] - bounds[0], bounds[3] -
-                bounds[2], bounds[5] - bounds[4]) / 2
-    v = viewer.Viewer(mesh, size=RESOLUTION)
-    v.set_camera(position=(0, 0, 100), parallel_scale=scale)
-    v.render()
-
+_logger = logging.getLogger(__name__)
+_logger.setLevel(logging.DEBUG)
 
 @timer
-def indicesOriginsDirections(bounds, sample_dim):
+def indicesOriginsDirections(bounds, dims):
 
-    ix = np.arange(sample_dim)
-    iy = np.arange(sample_dim)
+    ix = np.arange(dims[0])
+    iy = np.arange(dims[1])
 
-    x = np.linspace(bounds[0][0], bounds[1][0], sample_dim)
-    y = np.linspace(bounds[0][1], bounds[1][1], sample_dim)
+    x = np.linspace(bounds[0][0], bounds[1][0], dims[0])
+    y = np.linspace(bounds[0][1], bounds[1][1], dims[1])
 
     xv, yv = np.meshgrid(x, y)
     xv = np.array(xv).flatten()
@@ -73,14 +60,17 @@ def applyIntersections(indices, hit_coords, hm):
 
 
 @timer
-def getHeightmap(mesh, sample_dim, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
+def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
 
-    hm = np.ones([sample_dim, sample_dim]) * mesh.bounds[0][2]
+    heightmap_dims = np.ceil((mesh.bounds[1] - mesh.bounds[0]) / sampling_resolution)[:2].astype(int)
+    _logger.debug("heightmap_dims=%s", heightmap_dims)
+
+    hm = np.ones(np.flip(heightmap_dims)) * mesh.bounds[0][2]
 
     a = mesh.bounds[0] + subrange[0] * (mesh.bounds[1] - mesh.bounds[0])
     b = mesh.bounds[0] + subrange[1] * (mesh.bounds[1] - mesh.bounds[0])
 
-    indices, origins, directions = indicesOriginsDirections([a, b], sample_dim)
+    indices, origins, directions = indicesOriginsDirections([a, b], heightmap_dims)
 
     intersector = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
     hit_coords = intersector.intersects_location(origins, directions)
@@ -94,116 +84,198 @@ def fftImg(fft, filename):
     fft_img = np.fft.fftshift(np.log(np.abs(fft)))
     plt.imshow(fft_img)
     plt.savefig(filename)
+    plt.close()
 
 
-def fftAnalysis(prefix, meshfile, subrange):
-    mesh = trimesh.load_mesh(meshfile)
+def img(array2d, filename):
+    plt.imshow(array2d)
+    plt.savefig(filename)
+    plt.close()
 
-    heightmap = getHeightmap(mesh, 256, subrange)
+def get1dFft(heightmap_fft_abs):
+    n = heightmap_fft_abs.shape[0]
+    h = int(n / 2)
+    oned_fft = np.zeros(n)
+    for x in range(heightmap_fft_abs.shape[1]):
+        for y in range(heightmap_fft_abs.shape[0]):
+                d = int(np.sqrt((x - h)**2 + (y - h)**2))
+                if d < n:
+                    oned_fft[d] += heightmap_fft_abs[x, y]
+    return oned_fft
 
-    plt.imshow(heightmap)
-    plt.savefig(prefix + 'heightmap.png')
 
-    heightmap_fft = np.fft.fft2(heightmap)
-
-    fftImg(heightmap_fft, prefix + 'heightmap_fft.png')
-
-    return heightmap_fft
-
-
-def fftDescriptorHeightmap(heightmap):
-    return 0
-    heightmap_fft = np.fft.fftshift(np.fft.fft2(heightmap))
+def fftDescriptorHeightmap(heightmap, f=0.5, dbg=False, i=0):
+    fft = np.fft.fft2(heightmap)
+    fft[0, 0] = 0
+    heightmap_fft = np.fft.fftshift(fft)
+    heightmap_fft_abs = np.abs(heightmap_fft)
 
     n = heightmap.shape[0]
-    h = int(n / 4)
-    heightmap_fft[2 * h, 2 * h] = 0
-    low = np.sum(np.abs(heightmap_fft[h:3 * h, h:3 * h]))
-    heightmap_fft[h:3 * h, h:3 * h] = 0
-    high = np.sum(np.abs(heightmap_fft))
-    return low / high
+
+    heightmap_fft_abs_normalized = heightmap_fft_abs
+
+    oned_fft = get1dFft(heightmap_fft_abs)
+
+    low = np.sum(oned_fft[0:int(n/4)])
+    high = np.sum(oned_fft[int(n/4):int(n/2)])
+
+    if dbg:
+        fig1 = plt.figure()
+        plt.ylim((0, 3500))
+        plt.plot(range(oned_fft.shape[0]-1), oned_fft[1:])
+        fig1.savefig(os.path.join(OUTPUT, '_1dfft_%d.png' % i))
+        plt.close()
+
+    return high / low, low, high, oned_fft
 
 
-def patchFftDescriptor(meshfile, subrange, n=256):
-    mesh = trimesh.load_mesh(meshfile)
-    heightmap = getHeightmap(mesh, n, subrange)
-    return fftDescriptor(heightmap)
+def getHeightmap(filename, sampling_resolution):
+    mesh = trimesh.load_mesh(filename)
+    heightmap = computeHeightmap(mesh, sampling_resolution)
+    return heightmap
 
-def findPatch(meshfile):
-    mesh = trimesh.load_mesh(meshfile)
 
-    heightmap = getHeightmap(mesh, 128)
-
+def findPatch(heightmap, dbg=False):
     mask = heightmap > 0
 
     filled = binary_fill_holes(mask)
 
+    filled_pixels = filled.astype(np.float32) - mask.astype(np.float32)
+
+    if dbg:
+        img(filled_pixels, os.path.join(OUTPUT, '_pixels_to_interpolate.png'))
+        img(heightmap, os.path.join(OUTPUT, '_heightmap.png'))
+
+    interpolated_holes = fillnodata(heightmap, mask=filled_pixels == 0)
+
+    if dbg:
+        img(interpolated_holes, os.path.join(OUTPUT, '_interpolated_holes.png'))
+
     edt = distance_transform_edt(filled)
 
-    a = edt.max()
+    if dbg:
+        img(edt, os.path.join(OUTPUT, '_edt.png'))
+
+    patch_size = edt.max() * np.sqrt(2)
     coord = np.unravel_index(edt.argmax(), edt.shape)
 
-    return heightmap, a, coord
+    return patch_size, coord
 
 
-def extractHeightmap(heightmap, a, coord):
+def extractSubImage(heightmap, a, coord):
     a2 = int(a / 2)
-    area = heightmap[(coord[0] - a2):(coord[0] + a2),
-                     (coord[1] - a2):(coord[1] + a2)]
+    area = np.copy(heightmap[(coord[0] - a2):(coord[0] + a2),
+                             (coord[1] - a2):(coord[1] + a2)])
+    heightmap[(coord[0] - a2):(coord[0] + a2),
+              (coord[1] - a2):(coord[1] + a2)] += 1
     return area
 
 
-def fftDescriptorInternal(filename, no):
-    logging.debug("pid=%s, no=%s, input=%s", os.getpid(), no, input)
-    heightmap, a, coord = findPatch(filename)
-    heightmap_area = extractHeightmap(heightmap, a, coord)
-    return fftDescriptorHeightmap(heightmap_area)
+def fftDescriptor(filename, no=0, dbg=False, sampling_resolution=1, common_patch_size=1):
+    _logger.debug("pid=%s, no=%s, input=%s", os.getpid(), no, filename)
+    heightmap = getHeightmap(filename, sampling_resolution)
+
+    patch_size, coord = findPatch(heightmap, dbg)
+
+    heightmap_area = extractSubImage(heightmap, common_patch_size, coord)
+
+    img(heightmap, os.path.join(OUTPUT, 'fft',
+                                os.path.basename(filename) + '_area.png'))
 
 
-def fftDescriptor(filename, no):
-    fftd = fftDescriptorInternal(filename, no)
+    fftd, low, high, oned_fft = fftDescriptorHeightmap(heightmap_area, dbg=dbg, i=no)
     gc.collect()
-    return {'fftd': fftd}
+    return {'fftd': fftd, 'low': low, 'high': high, '1d': oned_fft}
 
 
 @timer
-def runFftDescriptorOnFiles(inputs):
-    with mp.Pool(processes=mp.cpu_count() * PROCESSES_PER_CPU) as pool:
+def runFftDescriptorOnFilesParallel(inputs, sampling_resolution=1, common_patch_size=1, proc_per_cpu=4):
+    with mp.Pool(processes=mp.cpu_count() * proc_per_cpu) as pool:
         async_results = [pool.apply_async(
-            fftDescriptor, (input, i)) for input, i in zip(inputs, range(len(inputs)))]
+            fftDescriptor, (input['filename'], i, i==0, sampling_resolution, common_patch_size))
+                for input, i in zip(inputs, range(len(inputs)))]
         results = [async_result.get() for async_result in async_results]
-    return results
+        return list(zip(inputs, results))
+
+
+def getBounds(filename):
+    return trimesh.load_mesh(filename).bounds
+
+
+@timer
+def getSamplingResolution(inputs, sampling_rate, proc_per_cpu=8):
+    with mp.Pool(processes=mp.cpu_count() * proc_per_cpu) as pool:
+        async_results = [pool.apply_async(getBounds, (s['filename'],))
+            for s in inputs]
+        bounds = [async_bounds.get() for async_bounds in async_results]
+        maxx = np.max([b[1][0] - b[0][0] for b in bounds])
+        maxy = np.max([b[1][1] - b[0][1] for b in bounds])
+        max_dim = np.max([maxx, maxy])
+        sampling_resolution = max_dim / sampling_rate
+        _logger.debug("sampling_resolution=%s", sampling_resolution)
+        return sampling_resolution
+
+
+def getPatch(filename, sampling_resolution):
+    print(filename, sampling_resolution)
+    return findPatch(getHeightmap(filename, sampling_resolution))
+
+@timer
+def getCommonSamplePatchSize(inputs, sampling_resolution, proc_per_cpu=8):
+    with mp.Pool(processes=mp.cpu_count() * proc_per_cpu) as pool:
+        async_results = [pool.apply_async(getPatch, (s['filename'], sampling_resolution))
+            for s in inputs]
+        patches = [async_patch.get() for async_patch in async_results]
+        common_patch_size = np.min([patch[0] for patch in patches])
+        _logger.debug("common_patch_size=%s", common_patch_size)
+        return common_patch_size
+
+
+def runFftDescriptorOnFiles(inputs, sampling_rate=192):
+    sampling_resolution = getSamplingResolution(inputs, sampling_rate)
+    common_patch_size = getCommonSamplePatchSize(inputs, sampling_resolution)
+    files_descriptors = runFftDescriptorOnFilesParallel(inputs, sampling_resolution, common_patch_size)
+
+    return files_descriptors
+
+def renderReport():
+    report = Report(OUTPUT)
+    report.generateFft()
+
+
+def analyzeDescriptors():
+    sample = list(get_sample(DATAFOLDER, OUTPUT))[0:100]
+    fftd = []
+    ages = []
+
+    files_descriptors = runFftDescriptorOnFiles(sample)
+
+    fftd = [fd[1]['fftd'] for fd in files_descriptors]
+    ages = [int(fd[0]['age']) for fd in files_descriptors]
+
+    plt.close()
+    fig1 = plt.figure()
+    plt.scatter(x=ages, y=fftd)
+    fig1.savefig(os.path.join(OUTPUT, "_age_fftd.png"), dpi=100)
+    plt.close()
+
+    fig1 = plt.figure()
+    maxnamelen = max(len(fd[0]['filename']) for fd in files_descriptors)
+    for i, fd in enumerate(files_descriptors):
+        print(("%4d %" + str(maxnamelen + 4) + "s %5s %.4f") % (i,
+            fd[0]['filename'], fd[0]['age'], fd[1]['fftd']))
+        l = fd[1]['1d']
+        color = 'blue'
+        if int(fd[0]['age']) > 50:
+            color = 'red'
+        plt.plot(range(l.shape[0]-1), l[1:], color=color)
+    fig1.savefig(os.path.join(OUTPUT, '_1dfft.png'))
+    plt.close()
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-
-    print(fftDescriptor(old))
-    print(fftDescriptor(old2))
-    print(fftDescriptor(young))
-
-    # fftDescriptor(old, [[0.55, 0.55, 0], [0.75, 0.75, 1]])
-    # fftDescriptor(young, [[0.4, 0.4, 0], [0.6, 0.6, 1]])
-
-    # mesh = trimesh.load_mesh(old)
-    # heightmap = getHeightmap(mesh, 256)
-    # plt.imshow(heightmap)
-    # plt.savefig('heightmap.png')
-
-    # f1 = fftAnalysis('old_', old, [[0.55, 0.55, 0], [0.75, 0.75, 1]])
-    # f2 = fftAnalysis('young_', young, [[0.4, 0.4, 0], [0.6, 0.6, 1]])
-    #
-    # fftImg(f1 / f2, 'fft_diff.png')
-
-    # samples = sample(mesh, 50)
-    #
-    # scene = trimesh.scene.Scene()
-    # scene.add_geometry(trimesh.points.PointCloud(samples))
-    # viewer = trimesh.viewer.windowed.SceneViewer(scene)
-
-    # mesh = sampledata.load_ply(old)
-    # print(old)
-    # _view([dict(dat=mesh, col=(0.5, 0.5, 0.5))])
-
-    # samples = sample(mesh)
-    # coefs = fft(samples)
+    #analyzeDescriptors()
+    renderReport()
+    # sample = list(get_sample(DATAFOLDER, OUTPUT))[0:2]
+    # runFftDescriptorOnFiles(sample)
