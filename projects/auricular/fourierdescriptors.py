@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-""" Preprocess auricular shape. """
+""" Compute fourier descriptors on auricular shape. """
 
 import logging
 import gc
@@ -12,7 +12,6 @@ from base.common import timer
 
 import matplotlib.pyplot as plt
 
-from runForAge import runForAge, runForAgeOnFiles
 from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
 from report import Report
 
