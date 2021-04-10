@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>curvature_{{ date_str }}</title>
+<style>
+.display-table {
+    display: table;
+}
+.display-table > div {
+    display: table-row;
+}
+.display-table > div > div {
+    display: table-cell;
+    padding: 5px;
+    border: 1px solid black;
+    vertical-align: top;
+}
+</style>
+</head>
+<body>
+
+<H1>{{ project_name }} - curvature descriptor report</H1>
+<div>date: {{ today }}</div>
+
+<h2>Individual specimens analysis</h2>
+<div class="display-table">
+  <div>
+    <div>#</div>
+    <div>name</div>
+    <div>age</div>
+    <div>d1_dne</div>
+    <div>d2_dne</div>
+    <div>d2_local_max</div>
+    <div>dne_local_map</div>
+  </div>
+
+{% for row in table %}
+  <div>
+    <div>{{ loop.index }}</div>
+    <div>{{ row['basename'] }}</div>
+    <div>{{ row['age'] }}</div>
+    <div>{{ "%.5f"|format(row['d1_dne']| float) }}</div>
+    <div>{{ "%.5f"|format(row['d2_dne']| float) }}</div>
+    <div>{{ "%.5f"|format(row['d2_localDNE_max']| float) }}</div>
+    <div>
+    {% for img in row['images'] %}
+      <a href="{{ img }}"><img class='specimen' height='100px' src="{{ img }}"/></a>
+    {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<h2>Descriptor - age relation</h2>
+<div>
+  <img src="{{dne_d2_by_age}}"/></br>
+  AriaDNE (d2): Scatterplot of 50 specimens ("randomly" selected). Age on x-axis, AriaDNE values on y-axis.
+</div>
+
+<div>
+  <img src="{{dne_d1_by_age}}"/></br>
+  Sampled DNE (d1): Scatterplot of 50 specimens ("randomly" selected). Age on x-axis, SampledDNE on y-axis.
+</div>
+
+
+</body>
+</html>

@@ -15,6 +15,7 @@ ANALYSIS = 'analysis_result.pickle'
 REPORT_TEMPLATE = "report.jinja2"
 LIST_TEMPLATE = "list.jinja2"
 FFT_REPORT_TEMPLATE = "fft_report.jinja2"
+CURVATURE_REPORT_TEMPLATE = "curvature_report.jinja2"
 
 FILENAME_PATTERN = re.compile(
     r'.*/(.*)(S|Cr|Th|Co1|Co2)_(aur)_(dex|sin)_(F|M)([0-9]*)')
@@ -33,7 +34,7 @@ def _parse_name(filename):
             'age': match.group(6)
             }
 
-def get_sample(input_folder, output):
+def get_sample(input_folder):
     ply_files_glob = os.path.join(os.path.expanduser(input_folder), "*.ply")
     for abs_filename in glob.glob(ply_files_glob):
         yield _parse_name(abs_filename)

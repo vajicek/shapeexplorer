@@ -12,12 +12,11 @@ from jinja2 import Template
 
 from analyze import loadData
 
-from common import OUTPUT, SAMPLE, ESTIMATES, ANALYSIS
-from common import REPORT_TEMPLATE, LIST_TEMPLATE, FFT_REPORT_TEMPLATE
+import common
 
-def _generatePdf(html, filename, base_url):
+def _generatePdf(html, filename, base_url, pdf_css):
     html = HTML(string=html, base_url=base_url)
-    html.write_pdf(filename)
+    html.write_pdf(filename, stylesheets=[CSS(string=pdf_css)], optimize_images=True)
 
 def _generateHtml(template, data):
     template = Template(template)
@@ -37,11 +36,11 @@ class Report:
         return os.path.join(self.output_dir, filename)
 
     def generateReport(self):
-        template = _getTemplate(_getTemplateFile(REPORT_TEMPLATE))
+        template = _getTemplate(_getTemplateFile(common.REPORT_TEMPLATE))
 
-        dataframe = loadData(self._getOutputFile(ESTIMATES))
+        dataframe = loadData(self._getOutputFile(common.ESTIMATES))
 
-        analysis_result = pickle.load(open(self._getOutputFile(ANALYSIS), 'rb'))
+        analysis_result = pickle.load(open(self._getOutputFile(common.ANALYSIS), 'rb'))
 
         now = datetime.datetime.now()
         data = {
@@ -66,7 +65,7 @@ class Report:
         _generatePdf(html, self._getOutputFile('report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
 
     def generateList(self):
-        template = _getTemplate(_getTemplateFile(LIST_TEMPLATE))
+        template = _getTemplate(_getTemplateFile(common.LIST_TEMPLATE))
 
         dataframe = loadData(self._getOutputFile(ESTIMATES))
 
@@ -89,7 +88,7 @@ class Report:
         open(self._getOutputFile('list.html'), 'w').write(html)
 
     def generateFft(self):
-        template = _getTemplate(_getTemplateFile(FFT_REPORT_TEMPLATE))
+        template = _getTemplate(_getTemplateFile(common.FFT_REPORT_TEMPLATE))
 
         now = datetime.datetime.now()
         data = {
@@ -101,9 +100,26 @@ class Report:
 
         _generatePdf(html, self._getOutputFile('fft_report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
 
+    def generateCurvature(self, data_dict, pdf_css):
+        template = _getTemplate(_getTemplateFile(common.CURVATURE_REPORT_TEMPLATE))
+
+        now = datetime.datetime.now()
+        date_str = now.strftime("%Y%m%d")
+        data = {
+            "today": now,
+            "date_str": date_str,
+            "project_name": os.path.basename(os.path.dirname(__file__)),
+            **data_dict
+        }
+
+        html = _generateHtml(template, data)
+
+        open(self._getOutputFile('curvature.html'), 'w').write(html)
+        _generatePdf(html, self._getOutputFile('curvature_%s.pdf' % date_str), self.output_dir, pdf_css)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    report = Report(OUTPUT)
+    report = Report(common.OUTPUT)
     report.generateReport()
     report.generateList()
