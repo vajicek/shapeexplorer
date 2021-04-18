@@ -88,8 +88,9 @@ def _evaluateModel(dataframe, indep, model=LinearRegression(), dep=['logAge']):
 
     return model_stats
 
-def _evaluateAllModels(dataframe):
-    indeps = [['logSAH'], ['logBE'], ['VC'], ['logSAH', 'VC'], ['logBE', 'VC']]
+def _evaluateAllModels(dataframe, indeps=None):
+    if indeps is None:
+        indeps = [['logSAH'], ['logBE'], ['VC'], ['logSAH', 'VC'], ['logBE', 'VC']]
     subsets = ['all']
     results = []
     for subset in subsets:

@@ -28,9 +28,10 @@
     <div>#</div>
     <div>name</div>
     <div>age</div>
-    <div>d1_dne</div>
-    <div>d2_dne</div>
-    <div>d2_local_max</div>
+    <div>sampled_dne</div>
+    <div>ariadne</div>
+    <div>clean_ariadne</div>
+    <div>ariadne_max</div>
     <div>dne_local_map</div>
   </div>
 
@@ -39,29 +40,54 @@
     <div>{{ loop.index }}</div>
     <div>{{ row['basename'] }}</div>
     <div>{{ row['age'] }}</div>
-    <div>{{ "%.5f"|format(row['d1_dne']| float) }}</div>
-    <div>{{ "%.5f"|format(row['d2_dne']| float) }}</div>
-    <div>{{ "%.5f"|format(row['d2_localDNE_max']| float) }}</div>
-    <div>
+    <div>{{ "%.5f"|format(row['sampled_dne']| float) }}</div>
+    <div>{{ "%.5f"|format(row['ariadne']| float) }}</div>
+    <div>{{ "%.5f"|format(row['clean_ariadne']| float) }}</div>
+    <div>{{ "%.5f"|format(row['ariadne_max']| float) }}</div>
     {% for img in row['images'] %}
+    <div>
       <a href="{{ img }}"><img class='specimen' height='100px' src="{{ img }}"/></a>
-    {% endfor %}
     </div>
+    {% endfor %}
   </div>
 {% endfor %}
 </div>
 
 <h2>Descriptor - age relation</h2>
 <div>
-  <img src="{{dne_d2_by_age}}"/></br>
-  AriaDNE (d2): Scatterplot of 50 specimens ("randomly" selected). Age on x-axis, AriaDNE values on y-axis.
+  <img src="{{ariadne_by_age}}"/></br>
+  AriaDNE: Scatterplot of {{ table|length }} specimens ("randomly" selected). Age on x-axis, AriaDNE values on y-axis.
 </div>
 
 <div>
-  <img src="{{dne_d1_by_age}}"/></br>
-  Sampled DNE (d1): Scatterplot of 50 specimens ("randomly" selected). Age on x-axis, SampledDNE on y-axis.
+  <img src="{{sampled_dne_by_age}}"/></br>
+  Sampled DNE: Scatterplot of {{ table|length }} specimens ("randomly" selected). Age on x-axis, SampledDNE on y-axis.
 </div>
 
+<h2>Model statistics</h3>
+
+<div class="display-table">
+  <div>
+    <div>#</div>
+    <div>descriptors</div>
+    <div>subset</div>
+    <div>rmse</div>
+    <div>bias</div>
+    <div>inaccuracy</div>
+    <div>pvalue</div>
+  </div>
+  {% for model in analysis_result['model_results'] %}
+    <div>
+      <div>{{ loop.index }}</div>
+      <div>{{ model['indep'] }}</div>
+      <div>{{ model['subset'] }}</div>
+      <div>{{ "%.5f"|format(model['rmse']| float) }}</div>
+      <div>{{ "%.5f"|format(model['bias']| float) }}</div>
+      <div>{{ "%.5f"|format(model['inaccuracy']| float) }}</div>
+      <div>{{ model['pvalue'] }}</div>
+    </div>
+  {% endfor %}
+</div>
 
 </body>
 </html>

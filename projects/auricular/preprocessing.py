@@ -20,12 +20,12 @@ RESOLUTION = (1024, 1024)
 # ERROR:root:Failed to parse filename: /home/vajicek/data/aurikularni_plocha_ply/804-58_4811th_aur_sin_F37.ply
 
 
-def _get_mesh_data(filename):
+def get_mesh_data(filename):
     mesh = sampledata.load_ply(filename)
     return [dict(dat=mesh, col=(0.5, 0.5, 0.5))]
 
 
-def _render_to_file(filename, mesh):
+def render_to_file(filename, mesh):
     bounds = mesh[0]["dat"].GetBounds()
     scale = max(bounds[1] - bounds[0], bounds[3] -
                 bounds[2], bounds[5] - bounds[4]) / 2
@@ -53,8 +53,8 @@ def _generate_images(input_sample, force=False):
         output_filename = os.path.join(sample["output"], png_filename)
         specimen['output'] = output_filename
         if not os.path.exists(output_filename) or force:
-            mesh = _get_mesh_data(specimen['filename'])
-            _render_to_file(output_filename, mesh)
+            mesh = get_mesh_data(specimen['filename'])
+            render_to_file(output_filename, mesh)
     return sample
 
 

@@ -8,14 +8,14 @@ import os
 import multiprocessing as mp
 import numpy as np
 
-from base.common import timer
+from base.common import timer, runInParallel
 
 import matplotlib.pyplot as plt
 
 from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
 from report import Report
 
-from scipy.ndimage import distance_transform_edt, binary_fill_holes
+from scipy.ndimage import distance_transform_edt, binary_fill_holes, binary_erosion
 
 from rasterio.fill import fillnodata
 
@@ -58,6 +58,18 @@ def applyIntersections(indices, hit_coords, hm):
         hm[array_index] = max(coord[2], hm[array_index])
 
 
+class Mapping:
+    def __init__(self, a, b, sampling_resolution, grid_dim):
+        self.a = a[:2]
+        self.b = b[:2]
+        self.step = sampling_resolution
+        self.grid_dim = grid_dim
+
+    def spaceToGrid(self, p):
+        index3 = (p - self.a) / self.step
+        return (self.grid_dim[1] - int(index3[1]) - 1, int(index3[0]))
+
+
 @timer
 def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
 
@@ -76,7 +88,15 @@ def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1
 
     applyIntersections(indices, hit_coords, hm)
 
-    return hm
+    return hm, Mapping(mesh.bounds[0], mesh.bounds[1], sampling_resolution, heightmap_dims)
+
+
+def getMaskMapping(mesh, sampling_resolution, erode_by=1):
+    hm, mapping = computeHeightmap(mesh, sampling_resolution)
+    mask = hm > mesh.bounds[0][2]
+    if erode_by > 0:
+        mask = binary_erosion(mask, iterations=erode_by)
+    return mask, mapping
 
 
 def fftImg(fft, filename):
@@ -130,7 +150,7 @@ def fftDescriptorHeightmap(heightmap, f=0.5, dbg=False, i=0):
 
 def getHeightmap(filename, sampling_resolution):
     mesh = trimesh.load_mesh(filename)
-    heightmap = computeHeightmap(mesh, sampling_resolution)
+    heightmap, _ = computeHeightmap(mesh, sampling_resolution)
     return heightmap
 
 
@@ -189,12 +209,10 @@ def fftDescriptor(filename, no=0, dbg=False, sampling_resolution=1, common_patch
 
 @timer
 def runFftDescriptorOnFilesParallel(inputs, sampling_resolution=1, common_patch_size=1, proc_per_cpu=4):
-    with mp.Pool(processes=mp.cpu_count() * proc_per_cpu) as pool:
-        async_results = [pool.apply_async(
-            fftDescriptor, (input['filename'], i, i==0, sampling_resolution, common_patch_size))
-                for input, i in zip(inputs, range(len(inputs)))]
-        results = [async_result.get() for async_result in async_results]
-        return list(zip(inputs, results))
+    input_params = [(input['filename'], i, i==0, sampling_resolution, common_patch_size)
+        for input, i in zip(inputs, range(len(inputs)))]
+    results = runInParallel(input_params, fftDescriptor)
+    return list(zip(inputs, results))
 
 
 def getBounds(filename):
@@ -203,31 +221,27 @@ def getBounds(filename):
 
 @timer
 def getSamplingResolution(inputs, sampling_rate, proc_per_cpu=8):
-    with mp.Pool(processes=mp.cpu_count() * proc_per_cpu) as pool:
-        async_results = [pool.apply_async(getBounds, (s['filename'],))
-            for s in inputs]
-        bounds = [async_bounds.get() for async_bounds in async_results]
-        maxx = np.max([b[1][0] - b[0][0] for b in bounds])
-        maxy = np.max([b[1][1] - b[0][1] for b in bounds])
-        max_dim = np.max([maxx, maxy])
-        sampling_resolution = max_dim / sampling_rate
-        _logger.debug("sampling_resolution=%s", sampling_resolution)
-        return sampling_resolution
+    bounds = runInParallel([(s['filename'],) for s in inputs], getBounds)
+
+    maxx = np.max([b[1][0] - b[0][0] for b in bounds])
+    maxy = np.max([b[1][1] - b[0][1] for b in bounds])
+    max_dim = np.max([maxx, maxy])
+    sampling_resolution = max_dim / sampling_rate
+    _logger.debug("sampling_resolution=%s", sampling_resolution)
+    return sampling_resolution
 
 
 def getPatch(filename, sampling_resolution):
     print(filename, sampling_resolution)
     return findPatch(getHeightmap(filename, sampling_resolution))
 
+
 @timer
 def getCommonSamplePatchSize(inputs, sampling_resolution, proc_per_cpu=8):
-    with mp.Pool(processes=mp.cpu_count() * proc_per_cpu) as pool:
-        async_results = [pool.apply_async(getPatch, (s['filename'], sampling_resolution))
-            for s in inputs]
-        patches = [async_patch.get() for async_patch in async_results]
-        common_patch_size = np.min([patch[0] for patch in patches])
-        _logger.debug("common_patch_size=%s", common_patch_size)
-        return common_patch_size
+    patches = runInParallel([(s['filename'], sampling_resolution) for s in inputs], getBounds)
+    common_patch_size = np.min([patch[0] for patch in patches])
+    _logger.debug("common_patch_size=%s", common_patch_size)
+    return common_patch_size
 
 
 def runFftDescriptorOnFiles(inputs, sampling_rate=192):

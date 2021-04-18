@@ -5,7 +5,7 @@ import os
 import re
 
 OUTPUT = "../output"
-DATAFOLDER = os.path.expanduser("~/data/aurikularni_plocha_ply/")
+DATAFOLDER = os.path.expanduser("~/data/aurikularni_plocha_ply2/")
 
 SAMPLE = 'sample.csv'
 DESCRIPTORS = 'sample_descriptors.csv'

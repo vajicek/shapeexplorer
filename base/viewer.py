@@ -7,6 +7,13 @@ def ButtonEvent(obj, event):
     camera = renWin.GetRenderers().GetFirstRenderer().GetActiveCamera()
     print(camera)
 
+def _set_vertex_colors(mesh, vertex_colors):
+    ucols = vtk.vtkUnsignedCharArray()
+    ucols.SetNumberOfComponents(4)
+    ucols.SetName("Colors")
+    for i in range(len(vertex_colors)):
+        ucols.InsertNextTuple4(*vertex_colors[i])
+    mesh.GetPointData().SetScalars(ucols)
 
 class Viewer(object):
     """Viewer class, render off-screen or to window"""
@@ -59,7 +66,10 @@ class Viewer(object):
         renderer = vtk.vtkRenderer()
         for data_element in data:
             actor = self._init_gui_element(data_element["dat"])
-            actor.GetProperty().SetColor(*data_element["col"]);
+            if 'vertex_colors' in data_element:
+                _set_vertex_colors(data_element['dat'], data_element['vertex_colors'])
+            else:
+                actor.GetProperty().SetColor(*data_element["col"]);
             renderer.AddActor(actor)
         renderer.SetBackground(1, 1, 1)
 
