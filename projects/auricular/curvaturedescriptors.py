@@ -31,20 +31,22 @@ from fourierdescriptors import getMaskMapping, img
 
 PROCESSES_PER_CPU = 1
 
+DESCRIPTOR_PICKLE = 'curvatureDescriptor.pickle'
+
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
 
 def removeOutliers(data, m=1):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
 
-def plotOut(fig1, filename):
+def plotOut(fig1, filename, output):
     if filename:
-        fig1.savefig(os.path.join(OUTPUT, filename), dpi=100)
+        fig1.savefig(os.path.join(output, filename), dpi=100)
         plt.close()
     else:
         plt.show()
 
-def scatterPlot(x, y, filename, labels=None):
+def scatterPlot(x, y, filename, output, labels=None):
     order = np.argsort(x)
     xs = np.array(x)[order]
     ys = np.array(y)[order]
@@ -54,18 +56,18 @@ def scatterPlot(x, y, filename, labels=None):
     if labels:
         for i, label in enumerate(labels):
             plt.annotate(label, (xs[i], ys[i]))
-    plotOut(fig1, filename)
+    plotOut(fig1, filename, output)
 
-def boxPlot(x, filename):
+def boxPlot(x, filename, output):
     x_clean = removeOutliers(x)
     fig1 = plt.figure()
     plt.boxplot([x, x_clean])
-    plotOut(fig1, filename)
+    plotOut(fig1, filename, output)
 
-def histogramPlot(x, filename):
+def histogramPlot(x, filename, output):
     fig1 = plt.figure()
     plt.hist(x, bins=20)
-    plotOut(fig1, filename)
+    plotOut(fig1, filename, output)
 
 def dneCurvature(vertex, neighbour_coords, vertex_normal, bandwidth):
     i_coords = numpy.matlib.repmat(vertex, neighbour_coords.shape[0], 1)
@@ -155,75 +157,59 @@ def ariaDNE(mesh, dist):
     return ariaDNEInternal(mesh, mesh.vertices, vert_area, dist)
 
 @timer
-def sampledAriaDNE(mesh, dist, sample_count=5000, filter_out_borders=True):
+def sampledAriaDNE(mesh,
+        dist,
+        sample_count=5000,
+        filter_out_borders=True,
+        mask_sampling_rate=0.5,
+        border_erode_iterations=2,
+        output=None,
+        filename=""):
     samples, _ = trimesh.sample.sample_surface(mesh, sample_count)
 
     if filter_out_borders:
-        mask, mapping = getMaskMapping(mesh, 0.5, 2)
+        mask, mapping = getMaskMapping(mesh, mask_sampling_rate, border_erode_iterations)
 
-        # xxx = np.zeros(mask.shape)
-        # for sample in samples:
-        #     grid_coord = mapping.spaceToGrid(sample[:2])
-        #     xxx[grid_coord] = xxx[grid_coord] + 1
-        # img(xxx, os.path.join(OUTPUT, '_mask2.png'))
+        if output:
+            sample_map = np.zeros(mask.shape)
+            for sample in samples:
+                grid_coord = mapping.spaceToGrid(sample[:2])
+                sample_map[grid_coord] = sample_map[grid_coord] + 1
+            img(sample_map, os.path.join(output, filename + '_sample_map.png'))
 
         masked_samples = [mask[mapping.spaceToGrid(sample[:2])] > 0 for sample in samples]
         samples = samples[masked_samples]
 
     return ariaDNEInternal(mesh, samples, np.ones(samples.shape[0]) / sample_count, dist)
 
-def drawToFile(mesh, filename, angles=(3.14, 0, 0), distance=8):
-    print("draw to file: %s" % filename)
-    scene = trimesh.scene.Scene([mesh])
-    scene.set_camera(angles=angles, distance=distance)
-
-    png = scene.save_image(resolution=[640, 480], visible=True)
-    with open(filename, 'wb') as f:
-        f.write(png)
-        f.close()
-
-def curvatureDescriptorDemo():
-    filename = '../ariaDNE_code/data.ply'
-    mesh = trimesh.load_mesh(filename)
-
-    for dist in [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
-        ariadne = ariaDNE(mesh, dist=dist)
-        mesh.visual.vertex_colors = trimesh.visual.interpolate(np.log(0.0001 + ariadne['localDNE']), 'jet')
-        drawToFile(mesh, 'output/test%s.png' % dist)
-
 def ariadneFilename(specimen, dist):
     return 'ariadne_%s_%s.png' % (specimen['basename'], dist)
 
-def curvatureDescriptor(specimen, dist=0.5):
+def curvatureDescriptor(specimen, dist=0.5, output=None):
     mesh = trimesh.load_mesh(specimen['filename'], process=False)
     ariadne = ariaDNE(mesh, dist=dist)
-    values = np.hstack((ariadne['localDNE'], np.array([0, 0.0008])))
-    colors = trimesh.visual.interpolate(np.log(1e-6 + values), 'jet')[:-2]
-    output = os.path.join(OUTPUT, ariadneFilename(specimen, dist))
 
-    mesh_data = get_mesh_data(specimen['filename'])
-    mesh_data[0]['vertex_colors'] = colors
-    render_to_file(output, mesh_data)
+    if output:
+        values = np.hstack((ariadne['localDNE'], np.array([0, 0.0008])))
+        colors = trimesh.visual.interpolate(np.log(1e-6 + values), 'jet')[:-2]
+
+        output_file = os.path.join(output, ariadneFilename(specimen, dist))
+
+        mesh_data = get_mesh_data(specimen['filename'])
+        mesh_data[0]['vertex_colors'] = colors
+        render_to_file(output_file, mesh_data)
 
     return ariadne
 
-def curvatureDescriptorValue(specimen, dist=0.5, sampled=True):
+def curvatureDescriptorValue(specimen, dist=0.5, sampled=True, output=None):
     mesh = trimesh.load_mesh(specimen['filename'])
     if sampled:
-        return sampledAriaDNE(mesh, dist=dist)
+        return sampledAriaDNE(mesh, dist=dist, output=output, filename=specimen['basename'])
     else :
         return ariaDNE(mesh, dist=dist)
     return ariadne
 
-def sampleMeshDemo(specimen):
-    mesh = trimesh.load_mesh(specimen['filename'])
-    samples, face_indices = trimesh.sample.sample_surface(mesh, 5000)
-    mesh.face_normals[face_indices]
-    points = trimesh.points.PointCloud(samples)
-    scene = trimesh.scene.Scene([mesh, points])
-    scene.show()
-
-def computeCurvature(specimen, dist, evaluate_ariadne=False):
+def computeCurvature(specimen, dist, output=None, eval_pervertex_ariadne=False):
     if 'dist' not in specimen:
         specimen['dist'] = {}
     if dist not in specimen['dist']:
@@ -231,116 +217,151 @@ def computeCurvature(specimen, dist, evaluate_ariadne=False):
     else:
         return specimen
     print("processing %s" % specimen['basename'])
-    sampled_dne = curvatureDescriptorValue(specimen, dist=dist, sampled=True)
+    sampled_dne = curvatureDescriptorValue(specimen, dist=dist, sampled=True, output=output)
     specimen['dist'][dist]['sampled_dne'] = sampled_dne['dne']
 
-    if evaluate_ariadne:
-        ariadne = curvatureDescriptor(specimen, dist=dist)
+    if eval_pervertex_ariadne:
+        ariadne = curvatureDescriptor(specimen, dist=dist, output=output)
         specimen['dist'][dist]['ariadne'] = ariadne['dne']
         specimen['dist'][dist]['clean_ariadne'] = ariadne['cleanDNE']
         specimen['dist'][dist]['ariadne_max'] = np.max(ariadne['localDNE'])
         specimen['dist'][dist]['ariadne_local'] = ariadne['localDNE']
     return specimen
 
-def modelEvaluation():
-    results = pickle.load(open(os.path.join(OUTPUT, 'curvatureDescriptor.pickle'), 'rb'))
+class CurvatureDescriptors:
 
-    is_ariadne_evaluated = 'ariadne' in results[0]['dist'][dist]
+    def __init__(self,
+            upper_bound=None,
+            dist=5.0,
+            output=OUTPUT,
+            eval_pervertex_ariadne=False,
+            subset=lambda a: True):
+        self.upper_bound = upper_bound
+        self.dist = dist
+        self.output = output
+        self.eval_pervertex_ariadne=eval_pervertex_ariadne
+        self.subset = subset
 
-    for result in results:
-        result['sampled_dne'] = result['dist'][dist]['sampled_dne']
-        if is_ariadne_evaluated:
-            result['ariadne'] = result['dist'][dist]['ariadne']
-            result['clean_ariadne'] = result['dist'][dist]['clean_ariadne']
-        result['logAge'] = np.log(float(result['age']))
+    def newAnalysis(self):
+        filename = os.path.join(self.output, DESCRIPTOR_PICKLE)
+        if not os.path.exists(self.output):
+            os.makedirs(self.output, exist_ok=True)
+        if not os.path.exists(filename):
+            sample = list(get_sample(DATAFOLDER))
+            sample = [l for l in sample if self.subset(l)]
+            pickle.dump(sample, open(filename, 'wb'))
 
-    _generate_csv(dict(output=OUTPUT, specimens=results), DESCRIPTORS,
-        ('basename', 'name', 'subset', 'sex', 'age', 'side', 'logAge',
-        'sampled_dne', 'ariadne', 'clean_ariadne'))
-    descriptors = loadData(os.path.join(OUTPUT, DESCRIPTORS))
+    def analyzeDescriptors(self):
+        sample = pickle.load(open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'rb'))
+        sorted_subsample = sorted(sample[0:self.upper_bound], key=lambda spec: int(spec['age']))
+        results = runInParallel([(specimen, self.dist, self.output, self.eval_pervertex_ariadne)
+            for specimen in sorted_subsample], computeCurvature, serial=False)
+        pickle.dump(results, open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'wb'))
 
-    if is_ariadne_evaluated:
-        model_results = _evaluateAllModels(descriptors, [['sampled_dne'], ['ariadne'], ['clean_ariadne']])
-    else:
-        model_results = _evaluateAllModels(descriptors, [['sampled_dne']])
+    def modelEvaluation(self):
+        results = pickle.load(open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'rb'))
 
-    analysis_result = dict(model_results=model_results)
+        for result in results:
+            result['sampled_dne'] = result['dist'][self.dist]['sampled_dne']
+            if self.eval_pervertex_ariadne:
+                result['ariadne'] = result['dist'][self.dist]['ariadne']
+                result['clean_ariadne'] = result['dist'][self.dist]['clean_ariadne']
+            result['logAge'] = np.log(float(result['age']))
+            result['subsets'] = ['all']
 
-    pickle.dump(analysis_result, open(os.path.join(OUTPUT, ANALYSIS), 'wb'))
+        _generate_csv(dict(output=self.output, specimens=results), DESCRIPTORS,
+            ('basename', 'name', 'subset', 'sex', 'age', 'side', 'logAge',
+            'sampled_dne', 'ariadne', 'clean_ariadne'))
+        descriptors = loadData(os.path.join(self.output, DESCRIPTORS))
 
-def analyzeDescriptors(dist=0.5, upper_bound=None):
-    sample = pickle.load(open(os.path.join(OUTPUT, 'curvatureDescriptor.pickle'), 'rb'))
-    sorted_subsample = sorted(sample[0:upper_bound], key=lambda spec: int(spec['age']))
-    results = runInParallel([(specimen, dist) for specimen in sorted_subsample], computeCurvature, serial=False)
-    pickle.dump(results, open(os.path.join(OUTPUT, 'curvatureDescriptor.pickle'), 'wb'))
+        if self.eval_pervertex_ariadne:
+            model_results = _evaluateAllModels(descriptors,
+                [['sampled_dne'], ['ariadne'], ['clean_ariadne']])
+        else:
+            model_results = _evaluateAllModels(descriptors,
+                [['sampled_dne']])
 
-def showAnalysis(dist=0.5, upper_bound=None):
-    sample = pickle.load(open(os.path.join(OUTPUT, 'curvatureDescriptor.pickle'), 'rb'))
-    sorted_subsample = sorted(sample[0:upper_bound], key=lambda spec: int(spec['age']))
+        analysis_result = dict(model_results=model_results)
 
-    is_ariadne_evaluated = 'ariadne' in sorted_subsample[0]['dist'][dist]
+        pickle.dump(analysis_result, open(os.path.join(self.output, ANALYSIS), 'wb'))
 
-    table = []
-    for specimen in sorted_subsample:
+    def showAnalysis(self):
+        sample = pickle.load(open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'rb'))
+        sorted_subsample = sorted(sample[0:self.upper_bound], key=lambda spec: int(spec['age']))
 
-        if 'ariadne' in sorted_subsample[0]['dist'][dist]:
-            histogram_output = "hist_%s.png" % specimen['basename']
-            histogramPlot(specimen['dist'][dist]['ariadne_local'], histogram_output)
+        table = []
+        for specimen in sorted_subsample:
 
-            boxplot_output = "box_%s.png" % specimen['basename']
-            boxPlot(specimen['dist'][dist]['ariadne_local'], boxplot_output)
+            if 'ariadne' in sorted_subsample[0]['dist'][self.dist]:
+                histogram_output = "hist_%s.png" % specimen['basename']
+                histogramPlot(specimen['dist'][self.dist]['ariadne_local'], histogram_output, self.output)
 
-        # images = [ariadneFilename(specimen, dist), histogram_output, boxplot_output]
-        images = [ariadneFilename(specimen, dist)]
+                boxplot_output = "box_%s.png" % specimen['basename']
+                boxPlot(specimen['dist'][self.dist]['ariadne_local'], boxplot_output, self.output)
 
-        ariadne = dict(ariadne = 0, clean_ariadne=0, ariadne_max=0)
-        if is_ariadne_evaluated:
-            ariadne = dict(ariadne=specimen['dist'][dist]['ariadne'],
-                clean_ariadne = specimen['dist'][dist]['clean_ariadne'],
-                ariadne_max = specimen['dist'][dist]['ariadne_max'])
+            sample_map = specimen['basename'] + '_sample_map.png'
 
-        table.append(dict(images=images,
-            age=specimen['age'],
-            sampled_dne=specimen['dist'][dist]['sampled_dne'],
-            **ariadne,
-            basename=specimen['basename']))
+            # images = [ariadneFilename(specimen, dist), histogram_output, boxplot_output]
+            images = [ariadneFilename(specimen, self.dist), sample_map]
 
-    ariadne_by_age = 'dne_d2_by_age_%s.png' % dist
-    if is_ariadne_evaluated:
+            ariadne = dict(ariadne = 0, clean_ariadne=0, ariadne_max=0)
+            if self.eval_pervertex_ariadne:
+                ariadne = dict(ariadne=specimen['dist'][self.dist]['ariadne'],
+                    clean_ariadne = specimen['dist'][self.dist]['clean_ariadne'],
+                    ariadne_max = specimen['dist'][self.dist]['ariadne_max'])
+
+            table.append(dict(images=images,
+                age=specimen['age'],
+                sampled_dne=specimen['dist'][self.dist]['sampled_dne'],
+                **ariadne,
+                basename=specimen['basename']))
+
+        labels = [str(i + 1) for i in range(len(sorted_subsample))]
+
+        ariadne_by_age = 'dne_d2_by_age_%s.png' % self.dist
+        if self.eval_pervertex_ariadne:
+            scatterPlot([int(s['age']) for s in sorted_subsample],
+                [s['dist'][self.dist]['ariadne'] for s in sorted_subsample],
+                ariadne_by_age,
+                self.output,
+                labels)
+
+        sampled_dne_by_age = 'sampled_dne_by_age_%s.png' % self.dist
         scatterPlot([int(s['age']) for s in sorted_subsample],
-            [s['dist'][dist]['ariadne'] for s in sorted_subsample],
-            ariadne_by_age,
-            [str(i + 1) for i in range(len(sorted_subsample))])
+            [s['dist'][self.dist]['sampled_dne'] for s in sorted_subsample],
+            sampled_dne_by_age,
+            self.output,
+            labels)
 
-    sampled_dne_by_age = 'sampled_dne_by_age_%s.png' % dist
-    scatterPlot([int(s['age']) for s in sorted_subsample],
-        [s['dist'][dist]['sampled_dne'] for s in sorted_subsample],
-        sampled_dne_by_age,
-        [str(i + 1) for i in range(len(sorted_subsample))])
+        analysis_result = pickle.load(open(os.path.join(self.output, ANALYSIS), 'rb'))
 
-    analysis_result = pickle.load(open(os.path.join(OUTPUT, ANALYSIS), 'rb'))
+        pdf_css = """
+            body { font-size: 10px }
+            img.specimen { height: 3cm }
+        """
+        report = Report(self.output)
+        report.generateCurvature(dict(table=table,
+            eval_pervertex_ariadne=self.eval_pervertex_ariadne,
+            analysis_result=analysis_result,
+            ariadne_by_age=ariadne_by_age,
+            sampled_dne_by_age=sampled_dne_by_age), pdf_css)
 
-    pdf_css = """
-        body { font-size: 10px }
-        img.specimen { height: 3cm }
-    """
-    report = Report(OUTPUT)
-    report.generateCurvature(dict(table=table,
-        analysis_result=analysis_result,
-        ariadne_by_age=ariadne_by_age,
-        sampled_dne_by_age=sampled_dne_by_age), pdf_css)
-
-def newAnalysis():
-    filename = os.path.join(OUTPUT, 'curvatureDescriptor.pickle')
-    if not os.path.exists(filename):
-        sample = list(get_sample(DATAFOLDER))
-        pickle.dump(sample, open(filename, 'wb'))
+    def run(self):
+        self.newAnalysis()
+        self.analyzeDescriptors()
+        self.modelEvaluation()
+        self.showAnalysis()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    upper_bound = None
-    dist = 5.0
-    newAnalysis()
-    analyzeDescriptors(dist, upper_bound)
-    modelEvaluation()
-    showAnalysis(dist, upper_bound)
+
+    CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
+        output=OUTPUT + "_lt_60",
+        subset=lambda a: int(a['age']) < 60).run()
+
+    CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
+        output=OUTPUT + "_ge_60",
+        subset=lambda a: int(a['age']) >= 60).run()
+
+    CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
+        output=OUTPUT).run()

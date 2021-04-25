@@ -58,7 +58,7 @@ def _modelPredictions(dataframe, model, indep, dep):
     fit = model.fit(X, y.values.ravel())
 
     prediction = fit.predict(dataframe[indep])
-    dataframe[prediction_column] = np.exp(prediction)
+    dataframe.loc[:,prediction_column] = np.exp(prediction)
 
     #return _modelStatistics(X, y, indep)
     return dict(pvalue=_getPvalue(fit, X, y.values.ravel()))
@@ -88,10 +88,9 @@ def _evaluateModel(dataframe, indep, model=LinearRegression(), dep=['logAge']):
 
     return model_stats
 
-def _evaluateAllModels(dataframe, indeps=None):
+def _evaluateAllModels(dataframe, indeps=None, subsets=['all']):
     if indeps is None:
         indeps = [['logSAH'], ['logBE'], ['VC'], ['logSAH', 'VC'], ['logBE', 'VC']]
-    subsets = ['all']
     results = []
     for subset in subsets:
         for indep in indeps:

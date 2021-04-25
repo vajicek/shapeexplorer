@@ -29,9 +29,11 @@
     <div>name</div>
     <div>age</div>
     <div>sampled_dne</div>
+{% if eval_pervertex_ariadne %}
     <div>ariadne</div>
     <div>clean_ariadne</div>
     <div>ariadne_max</div>
+{% endif %}
     <div>dne_local_map</div>
   </div>
 
@@ -41,9 +43,11 @@
     <div>{{ row['basename'] }}</div>
     <div>{{ row['age'] }}</div>
     <div>{{ "%.5f"|format(row['sampled_dne']| float) }}</div>
+{% if eval_pervertex_ariadne %}
     <div>{{ "%.5f"|format(row['ariadne']| float) }}</div>
     <div>{{ "%.5f"|format(row['clean_ariadne']| float) }}</div>
     <div>{{ "%.5f"|format(row['ariadne_max']| float) }}</div>
+{% endif %}
     {% for img in row['images'] %}
     <div>
       <a href="{{ img }}"><img class='specimen' height='100px' src="{{ img }}"/></a>
@@ -54,10 +58,12 @@
 </div>
 
 <h2>Descriptor - age relation</h2>
+{% if eval_pervertex_ariadne %}
 <div>
   <img src="{{ariadne_by_age}}"/></br>
   AriaDNE: Scatterplot of {{ table|length }} specimens ("randomly" selected). Age on x-axis, AriaDNE values on y-axis.
 </div>
+{% endif %}
 
 <div>
   <img src="{{sampled_dne_by_age}}"/></br>
