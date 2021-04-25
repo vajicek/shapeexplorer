@@ -173,20 +173,19 @@ def sampledAriaDNE(mesh,
                    filter_out_borders=True,
                    mask_sampling_rate=0.5,
                    border_erode_iterations=2,
-                   output=None,
-                   filename=""):
+                   output_filename=None):
     samples, _ = trimesh.sample.sample_surface(mesh, sample_count)
 
     if filter_out_borders:
         mask, mapping = getMaskMapping(
             mesh, mask_sampling_rate, border_erode_iterations)
 
-        if output:
+        if output_filename:
             sample_map = np.zeros(mask.shape)
             for sample in samples:
                 grid_coord = mapping.spaceToGrid(sample[:2])
                 sample_map[grid_coord] = sample_map[grid_coord] + 1
-            img(sample_map, os.path.join(output, filename + '_sample_map.png'))
+            img(sample_map, output_filename)
 
         masked_samples = [mask[mapping.spaceToGrid(
             sample[:2])] > 0 for sample in samples]
@@ -199,19 +198,17 @@ def ariadneFilename(specimen, dist):
     return 'ariadne_%s_%s.png' % (specimen['basename'], dist)
 
 
-def curvatureDescriptor(specimen, dist=0.5, output=None):
+def curvatureDescriptor(specimen, dist=0.5, output_filename=None):
     mesh = trimesh.load_mesh(specimen['filename'], process=False)
     ariadne = ariaDNE(mesh, dist=dist)
 
-    if output:
+    if output_filename:
         values = np.hstack((ariadne['localDNE'], np.array([0, 0.0008])))
         colors = trimesh.visual.interpolate(np.log(1e-6 + values), 'jet')[:-2]
 
-        output_file = os.path.join(output, ariadneFilename(specimen, dist))
-
         mesh_data = get_mesh_data(specimen['filename'])
         mesh_data[0]['vertex_colors'] = colors
-        render_to_file(output_file, mesh_data)
+        render_to_file(output_filename, mesh_data)
 
     return ariadne
 
@@ -219,10 +216,10 @@ def curvatureDescriptor(specimen, dist=0.5, output=None):
 def curvatureDescriptorValue(specimen, dist=0.5, sampled=True, output=None):
     mesh = trimesh.load_mesh(specimen['filename'])
     if sampled:
-        return sampledAriaDNE(mesh, dist=dist, output=output, filename=specimen['basename'])
+        output_filename = os.path.join(output, specimen['basename'] + '_sample_map.png')
+        return sampledAriaDNE(mesh, dist=dist, output_filename=output_filename)
     else:
         return ariaDNE(mesh, dist=dist)
-    return ariadne
 
 
 def computeCurvature(specimen, dist, output=None, eval_pervertex_ariadne=False):
@@ -238,7 +235,8 @@ def computeCurvature(specimen, dist, output=None, eval_pervertex_ariadne=False):
     specimen['dist'][dist]['sampled_dne'] = sampled_dne['dne']
 
     if eval_pervertex_ariadne:
-        ariadne = curvatureDescriptor(specimen, dist=dist, output=output)
+        output_file = os.path.join(output, ariadneFilename(specimen, dist))
+        ariadne = curvatureDescriptor(specimen, dist=dist, output_file=output_file)
         specimen['dist'][dist]['ariadne'] = ariadne['dne']
         specimen['dist'][dist]['clean_ariadne'] = ariadne['cleanDNE']
         specimen['dist'][dist]['ariadne_max'] = np.max(ariadne['localDNE'])
