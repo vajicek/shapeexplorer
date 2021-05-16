@@ -16,8 +16,8 @@ def timer(function):
 
 def runInParallel(inputs, fnc, serial=False):
     if serial:
-        return [fnc(*input) for input in inputs]
+        return [fnc(**input) for input in inputs]
     with mp.Pool(processes=mp.cpu_count()) as pool:
-        async_results = [pool.apply_async(fnc, (*input,)) for input in inputs]
+        async_results = [pool.apply_async(fnc, (), input) for input in inputs]
         results = [async_result.get() for async_result in async_results]
     return results

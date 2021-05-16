@@ -13,6 +13,22 @@ def _make_vtk_id_list(it):
     return vil
 
 
+def get_point_cloud(points):
+    vtkPoints = vtk.vtkPoints()
+
+    vertices = vtk.vtkCellArray()
+    for p in points:
+        id = vtkPoints.InsertNextPoint(p)
+        vertices.InsertNextCell(1)
+        vertices.InsertCellPoint(id)
+
+    point = vtk.vtkPolyData()
+    point.SetPoints(vtkPoints)
+    point.SetVerts(vertices)
+
+    return [dict(dat=point, col=(1.0, 0.0, 0.0))]
+
+
 def cube_gizmo_data():
     # x = array of 8 3-tuples of float representing the vertices of a cube:
     # x = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0),

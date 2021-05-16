@@ -22,12 +22,12 @@ from scipy import stats
 
 from base.common import timer, runInParallel
 
-from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, ANALYSIS, get_sample
-from report import Report
+from common import OUTPUT, DATAFOLDER_SURFACE_ONLY, SAMPLE, DESCRIPTORS, ANALYSIS, get_sample
+from report import Report, removeOutliers, scatterPlot, boxPlot, histogramPlot
 from preprocessing import render_to_file, get_mesh_data, _generate_csv
 from analyze import _evaluateModel, loadData, _evaluateAllModels
 
-from fourierdescriptors import getMaskMapping, img
+from fourierdescriptors import getMaskMapping, img, regularSampling
 
 PROCESSES_PER_CPU = 1
 
@@ -35,44 +35,6 @@ DESCRIPTOR_PICKLE = 'curvatureDescriptor.pickle'
 
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
-
-
-def removeOutliers(data, m=1):
-    return data[abs(data - np.mean(data)) < m * np.std(data)]
-
-
-def plotOut(fig1, filename, output):
-    if filename:
-        fig1.savefig(os.path.join(output, filename), dpi=100)
-        plt.close()
-    else:
-        plt.show()
-
-
-def scatterPlot(x, y, filename, output, labels=None):
-    order = np.argsort(x)
-    xs = np.array(x)[order]
-    ys = np.array(y)[order]
-
-    fig1 = plt.figure()
-    plt.scatter(xs, ys)
-    if labels:
-        for i, label in enumerate(labels):
-            plt.annotate(label, (xs[i], ys[i]))
-    plotOut(fig1, filename, output)
-
-
-def boxPlot(x, filename, output):
-    x_clean = removeOutliers(x)
-    fig1 = plt.figure()
-    plt.boxplot([x, x_clean])
-    plotOut(fig1, filename, output)
-
-
-def histogramPlot(x, filename, output):
-    fig1 = plt.figure()
-    plt.hist(x, bins=20)
-    plotOut(fig1, filename, output)
 
 
 def dneCurvature(vertex, neighbour_coords, vertex_normal, bandwidth):
@@ -120,7 +82,7 @@ def dneCurvature(vertex, neighbour_coords, vertex_normal, bandwidth):
     sum_d = sum(d)
     curvature = 0 if sum_d == 0 else lamb / sum_d
 
-    return curvature, normal
+    return np.log(1e-6 + curvature), normal
 
 
 def ariaDNEInternal(mesh, samples, sample_area, dist, bandwith_factor=0.4, verbose=False):
@@ -140,9 +102,10 @@ def ariaDNEInternal(mesh, samples, sample_area, dist, bandwith_factor=0.4, verbo
             print("%d/%d" % (j + 1, batches))
         from_index = j * batch_size
         to_index = min((j + 1) * batch_size, sample_count)
-        res = kdtree.query_ball_point(samples[from_index: to_index], r=dist)
+        neighbourhood = kdtree.query_ball_point(samples[from_index: to_index],
+                                                r=dist)
 
-        for sub_i, neighbours in enumerate(res):
+        for sub_i, neighbours in enumerate(neighbourhood):
             i = j * batch_size + sub_i
 
             curvatures[i], normals[i, :] = dneCurvature(samples[i],
@@ -168,15 +131,18 @@ def ariaDNE(mesh, dist):
 
 @timer
 def sampledAriaDNE(mesh,
-                   dist,
+                   dist=1,
                    sample_count=5000,
                    filter_out_borders=True,
                    mask_sampling_rate=0.5,
-                   border_erode_iterations=2,
-                   output_filename=None):
-    samples, _ = trimesh.sample.sample_surface(mesh, sample_count)
+                   border_erode_iterations=0,
+                   output_filename=None, **kwargs):
+    # samples, _ = trimesh.sample.sample_surface_even(mesh, sample_count)
 
-    if filter_out_borders:
+    _, _, samples = regularSampling(mesh, mask_sampling_rate)
+    samples = samples[0]
+
+    if filter_out_borders and border_erode_iterations > 0:
         mask, mapping = getMaskMapping(
             mesh, mask_sampling_rate, border_erode_iterations)
 
@@ -185,20 +151,21 @@ def sampledAriaDNE(mesh,
             for sample in samples:
                 grid_coord = mapping.spaceToGrid(sample[:2])
                 sample_map[grid_coord] = sample_map[grid_coord] + 1
-            img(sample_map, output_filename)
+            img(sample_map * mask, output_filename)
+            #img(mask, output_filename)
 
-        masked_samples = [mask[mapping.spaceToGrid(
-            sample[:2])] > 0 for sample in samples]
+        masked_samples = [mask[mapping.spaceToGrid(sample[:2])] > 0
+            for sample in samples]
         samples = samples[masked_samples]
 
-    return ariaDNEInternal(mesh, samples, np.ones(samples.shape[0]) / sample_count, dist)
+    return ariaDNEInternal(mesh, samples, np.ones(samples.shape[0]) / samples.shape[0], dist)
 
 
 def ariadneFilename(specimen, dist):
     return 'ariadne_%s_%s.png' % (specimen['basename'], dist)
 
 
-def curvatureDescriptor(specimen, dist=0.5, output_filename=None):
+def fullCurvatureDescriptorValue(specimen, dist=0.5, output_filename=None):
     mesh = trimesh.load_mesh(specimen['filename'], process=False)
     ariadne = ariaDNE(mesh, dist=dist)
 
@@ -213,16 +180,24 @@ def curvatureDescriptor(specimen, dist=0.5, output_filename=None):
     return ariadne
 
 
-def curvatureDescriptorValue(specimen, dist=0.5, sampled=True, output=None):
+def sampledCurvatureDescriptorValue(**kwargs):
+    output = kwargs['output']
+    specimen = kwargs['specimen']
+    mesh_output_filename = os.path.join(output, specimen['basename'] + '_mesh.png')
+    render_to_file(mesh_output_filename, get_mesh_data(specimen['filename']))
+
     mesh = trimesh.load_mesh(specimen['filename'])
-    if sampled:
-        output_filename = os.path.join(output, specimen['basename'] + '_sample_map.png')
-        return sampledAriaDNE(mesh, dist=dist, output_filename=output_filename)
-    else:
-        return ariaDNE(mesh, dist=dist)
+    output_filename = os.path.join(output, specimen['basename'] + '_sample_map.png')
+    return sampledAriaDNE(mesh, output_filename=output_filename, **kwargs)
 
 
-def computeCurvature(specimen, dist, output=None, eval_pervertex_ariadne=False):
+def computeCurvature(**kwargs):
+    gc.collect()
+
+    specimen = kwargs['specimen']
+    dist = kwargs['dist']
+    output = kwargs['output']
+
     if 'dist' not in specimen:
         specimen['dist'] = {}
     if dist not in specimen['dist']:
@@ -230,17 +205,17 @@ def computeCurvature(specimen, dist, output=None, eval_pervertex_ariadne=False):
     else:
         return specimen
     print("processing %s" % specimen['basename'])
-    sampled_dne = curvatureDescriptorValue(
-        specimen, dist=dist, sampled=True, output=output)
+    sampled_dne = sampledCurvatureDescriptorValue(**kwargs)
     specimen['dist'][dist]['sampled_dne'] = sampled_dne['dne']
 
-    if eval_pervertex_ariadne:
+    if kwargs['eval_pervertex_ariadne']:
         output_file = os.path.join(output, ariadneFilename(specimen, dist))
-        ariadne = curvatureDescriptor(specimen, dist=dist, output_file=output_file)
+        ariadne = fullCurvatureDescriptorValue(specimen, dist=dist, output_file=output_file)
         specimen['dist'][dist]['ariadne'] = ariadne['dne']
         specimen['dist'][dist]['clean_ariadne'] = ariadne['cleanDNE']
         specimen['dist'][dist]['ariadne_max'] = np.max(ariadne['localDNE'])
         specimen['dist'][dist]['ariadne_local'] = ariadne['localDNE']
+
     return specimen
 
 
@@ -257,13 +232,20 @@ class CurvatureDescriptors:
         self.output = output
         self.eval_pervertex_ariadne = eval_pervertex_ariadne
         self.subset = subset
+        self.params = dict(dist=self.dist,
+            sample_count=5000,
+            filter_out_borders=True,
+            mask_sampling_rate=0.5,
+            border_erode_iterations=0,
+            output=self.output,
+            eval_pervertex_ariadne=self.eval_pervertex_ariadne)
 
     def newAnalysis(self):
         filename = os.path.join(self.output, DESCRIPTOR_PICKLE)
         if not os.path.exists(self.output):
             os.makedirs(self.output, exist_ok=True)
         if not os.path.exists(filename):
-            sample = list(get_sample(DATAFOLDER))
+            sample = list(get_sample(DATAFOLDER_SURFACE_ONLY))
             sample = [l for l in sample if self.subset(l)]
             pickle.dump(sample, open(filename, 'wb'))
 
@@ -272,7 +254,8 @@ class CurvatureDescriptors:
             open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'rb'))
         sorted_subsample = sorted(
             sample[0:self.upper_bound], key=lambda spec: int(spec['age']))
-        results = runInParallel([(specimen, self.dist, self.output, self.eval_pervertex_ariadne)
+
+        results = runInParallel([{'specimen': specimen, **self.params}
                                  for specimen in sorted_subsample], computeCurvature, serial=False)
         pickle.dump(results, open(os.path.join(
             self.output, DESCRIPTOR_PICKLE), 'wb'))
@@ -325,9 +308,10 @@ class CurvatureDescriptors:
                         ['ariadne_local'], boxplot_output, self.output)
 
             sample_map = specimen['basename'] + '_sample_map.png'
+            mesh_output = specimen['basename'] + '_mesh.png'
 
             # images = [ariadneFilename(specimen, dist), histogram_output, boxplot_output]
-            images = [ariadneFilename(specimen, self.dist), sample_map]
+            images = [ariadneFilename(specimen, self.dist), sample_map, mesh_output]
 
             ariadne = dict(ariadne=0, clean_ariadne=0, ariadne_max=0)
             if self.eval_pervertex_ariadne:
@@ -369,6 +353,7 @@ class CurvatureDescriptors:
         """
         report = Report(self.output)
         report.generateCurvature(dict(table=table,
+                                      params=self.params,
                                       eval_pervertex_ariadne=self.eval_pervertex_ariadne,
                                       analysis_result=analysis_result,
                                       ariadne_by_age=ariadne_by_age,
@@ -384,13 +369,15 @@ class CurvatureDescriptors:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
-                         output=OUTPUT + "_lt_60",
-                         subset=lambda a: int(a['age']) < 60).run()
+    # CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
+    #                      output=OUTPUT + "_lt_60",
+    #                      subset=lambda a: int(a['age']) < 60).run()
+    #
+    # CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
+    #                      output=OUTPUT + "_ge_60",
+    #                      subset=lambda a: int(a['age']) >= 60).run()
 
-    CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
-                         output=OUTPUT + "_ge_60",
-                         subset=lambda a: int(a['age']) >= 60).run()
-
-    CurvatureDescriptors(upper_bound=None, dist=5.0, eval_pervertex_ariadne=False,
+    CurvatureDescriptors(upper_bound=None,
+                         dist=1.0,
+                         eval_pervertex_ariadne=False,
                          output=OUTPUT).run()

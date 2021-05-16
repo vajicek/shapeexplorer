@@ -51,8 +51,8 @@ def indicesOriginsDirections(bounds, dims):
 
 
 @timer
-def applyIntersections(indices, hit_coords, hm):
-    for coord, index in zip(hit_coords[0], hit_coords[1]):
+def applyIntersections(indices, coords, hm):
+    for coord, index in zip(coords[0], coords[1]):
         array_index = indices[index]
         array_index = (hm.shape[0] - array_index[1] - 1, array_index[0])
         hm[array_index] = max(coord[2], hm[array_index])
@@ -70,25 +70,29 @@ class Mapping:
         return (self.grid_dim[1] - int(index3[1]) - 1, int(index3[0]))
 
 
-@timer
-def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
-
-    heightmap_dims = np.ceil((mesh.bounds[1] - mesh.bounds[0]) / sampling_resolution)[:2].astype(int)
-    _logger.debug("heightmap_dims=%s", heightmap_dims)
-
-    hm = np.ones(np.flip(heightmap_dims)) * mesh.bounds[0][2]
+def regularSampling(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
+    dims = np.ceil((mesh.bounds[1] - mesh.bounds[0]) / sampling_resolution)[:2].astype(int)
 
     a = mesh.bounds[0] + subrange[0] * (mesh.bounds[1] - mesh.bounds[0])
     b = mesh.bounds[0] + subrange[1] * (mesh.bounds[1] - mesh.bounds[0])
 
-    indices, origins, directions = indicesOriginsDirections([a, b], heightmap_dims)
+    indices, origins, directions = indicesOriginsDirections([a, b], dims)
 
     intersector = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
-    hit_coords = intersector.intersects_location(origins, directions)
+    coords = intersector.intersects_location(origins, directions)
 
-    applyIntersections(indices, hit_coords, hm)
+    return dims, indices, coords
 
-    return hm, Mapping(mesh.bounds[0], mesh.bounds[1], sampling_resolution, heightmap_dims)
+
+@timer
+def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
+    dims, indices, coords = regularSampling(mesh, sampling_resolution, subrange)
+    _logger.debug("dims=%s", dims)
+
+    hm = np.ones(np.flip(dims)) * mesh.bounds[0][2]
+    applyIntersections(indices, coords, hm)
+
+    return hm, Mapping(mesh.bounds[0], mesh.bounds[1], sampling_resolution, dims)
 
 
 def getMaskMapping(mesh, sampling_resolution, erode_by=1):

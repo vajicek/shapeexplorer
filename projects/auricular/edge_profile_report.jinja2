@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>curvature_{{ date_str }}</title>
+<style>
+.display-table {
+    display: table;
+}
+.display-table > div {
+    display: table-row;
+}
+.display-table > div > div {
+    display: table-cell;
+    padding: 5px;
+    border: 1px solid black;
+    vertical-align: top;
+}
+</style>
+</head>
+<body>
+
+<H1>{{ project_name }} - edge profile descriptor report</H1>
+<div>date: {{ today }}</div>
+
+<h2>Individual specimens analysis</h2>
+<div class="display-table">
+  <div>
+    <div>#</div>
+    <div>name</div>
+    <div>age</div>
+    <div>profile</div>
+  </div>
+
+{% for row in table %}
+  <div>
+    <div>{{ loop.index }}</div>
+    <div>{{ row['basename'] }}</div>
+    <div>{{ row['age'] }}</div>
+    {% for img in row['images'] %}
+    <div>
+      <a href="{{ img }}"><img class='specimen' height='100px' src="{{ img }}"/></a>
+    </div>
+    {% endfor %}
+  </div>
+{% endfor %}
+
+
+</div>
+
+</body>
+</html>

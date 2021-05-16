@@ -5,7 +5,8 @@ import os
 import re
 
 OUTPUT = "../output"
-DATAFOLDER = os.path.expanduser("~/data/aurikularni_plocha_ply2/")
+DATAFOLDER = os.path.expanduser("~/data/aurikularni_plocha_ply/")
+DATAFOLDER_SURFACE_ONLY = os.path.expanduser("~/data/aurikularni_plocha_ply2/")
 
 SAMPLE = 'sample.csv'
 DESCRIPTORS = 'sample_descriptors.csv'
@@ -16,6 +17,7 @@ REPORT_TEMPLATE = "report.jinja2"
 LIST_TEMPLATE = "list.jinja2"
 FFT_REPORT_TEMPLATE = "fft_report.jinja2"
 CURVATURE_REPORT_TEMPLATE = "curvature_report.jinja2"
+EDGE_PROFILE_REPORT_TEMPLATE = "edge_profile_report.jinja2"
 
 FILENAME_PATTERN = re.compile(
     r'.*/(.*)(S|Cr|Th|Co1|Co2)_(aur)_(dex|sin)_(F|M)([0-9]*)')
