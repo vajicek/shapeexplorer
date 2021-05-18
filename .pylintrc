@@ -1,0 +1,10 @@
+
+[MASTER]
+function-naming-style=camelCase
+method-naming-style=camelCase
+
+[MESSAGES CONTROL]
+disable=missing-function-docstring, missing-class-docstring
+
+[FORMAT]
+max-line-length=120
