@@ -101,3 +101,5 @@ class Viewer(object):
         pngWriter.SetFileName(filename)
         pngWriter.SetInputConnection(win2img.GetOutputPort())
         pngWriter.Write()
+
+        self.renWin.Finalize()

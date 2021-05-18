@@ -4,18 +4,18 @@
 
 import datetime
 import logging
-import numpy as np
 import pickle
 import os
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 from weasyprint import HTML, CSS
 from jinja2 import Template
 
-from analyze import loadData
+from .analyze import loadData
 
-import common
+from . import common
 
 
 def removeOutliers(data, m=1):

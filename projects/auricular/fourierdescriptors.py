@@ -5,17 +5,18 @@
 import logging
 import gc
 import os
-import multiprocessing as mp
 import numpy as np
-
-from base.common import timer, runInParallel
 
 import matplotlib.pyplot as plt
 
-from common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
-from report import Report
+from base.common import timer, runInParallel
 
-from scipy.ndimage import distance_transform_edt, binary_fill_holes, binary_erosion
+from .common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
+from .report import Report
+from .projection import computeHeightmap
+from .preprocessing import img, generate_csv, generate_images
+
+from scipy.ndimage import distance_transform_edt, binary_fill_holes
 
 from rasterio.fill import fillnodata
 
@@ -26,82 +27,6 @@ PROCESSES_PER_CPU = 1
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
 
-@timer
-def indicesOriginsDirections(bounds, dims):
-
-    ix = np.arange(dims[0])
-    iy = np.arange(dims[1])
-
-    x = np.linspace(bounds[0][0], bounds[1][0], dims[0])
-    y = np.linspace(bounds[0][1], bounds[1][1], dims[1])
-
-    xv, yv = np.meshgrid(x, y)
-    xv = np.array(xv).flatten()
-    yv = np.array(yv).flatten()
-    zv = np.ones(yv.shape) * 10
-
-    ixv, iyv = np.meshgrid(ix, iy)
-    ixv = np.array(ixv).flatten()
-    iyv = np.array(iyv).flatten()
-
-    indices = list(zip(ixv, iyv))
-    origins = list(zip(xv, yv, zv))
-    directions = [(0, 0, -1)] * len(origins)
-    return indices, origins, directions
-
-
-@timer
-def applyIntersections(indices, coords, hm):
-    for coord, index in zip(coords[0], coords[1]):
-        array_index = indices[index]
-        array_index = (hm.shape[0] - array_index[1] - 1, array_index[0])
-        hm[array_index] = max(coord[2], hm[array_index])
-
-
-class Mapping:
-    def __init__(self, a, b, sampling_resolution, grid_dim):
-        self.a = a[:2]
-        self.b = b[:2]
-        self.step = sampling_resolution
-        self.grid_dim = grid_dim
-
-    def spaceToGrid(self, p):
-        index3 = (p - self.a) / self.step
-        return (self.grid_dim[1] - int(index3[1]) - 1, int(index3[0]))
-
-
-def regularSampling(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
-    dims = np.ceil((mesh.bounds[1] - mesh.bounds[0]) / sampling_resolution)[:2].astype(int)
-
-    a = mesh.bounds[0] + subrange[0] * (mesh.bounds[1] - mesh.bounds[0])
-    b = mesh.bounds[0] + subrange[1] * (mesh.bounds[1] - mesh.bounds[0])
-
-    indices, origins, directions = indicesOriginsDirections([a, b], dims)
-
-    intersector = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
-    coords = intersector.intersects_location(origins, directions)
-
-    return dims, indices, coords
-
-
-@timer
-def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
-    dims, indices, coords = regularSampling(mesh, sampling_resolution, subrange)
-    _logger.debug("dims=%s", dims)
-
-    hm = np.ones(np.flip(dims)) * mesh.bounds[0][2]
-    applyIntersections(indices, coords, hm)
-
-    return hm, Mapping(mesh.bounds[0], mesh.bounds[1], sampling_resolution, dims)
-
-
-def getMaskMapping(mesh, sampling_resolution, erode_by=1):
-    hm, mapping = computeHeightmap(mesh, sampling_resolution)
-    mask = hm > mesh.bounds[0][2]
-    if erode_by > 0:
-        mask = binary_erosion(mask, iterations=erode_by)
-    return mask, mapping
-
 
 def fftImg(fft, filename):
     fft_img = np.fft.fftshift(np.log(np.abs(fft)))
@@ -109,11 +34,6 @@ def fftImg(fft, filename):
     plt.savefig(filename)
     plt.close()
 
-
-def img(array2d, filename):
-    plt.imshow(array2d)
-    plt.savefig(filename)
-    plt.close()
 
 def get1dFft(heightmap_fft_abs):
     n = heightmap_fft_abs.shape[0]
@@ -248,6 +168,32 @@ def getCommonSamplePatchSize(inputs, sampling_resolution, proc_per_cpu=8):
     return common_patch_size
 
 
+@timer
+def _run_fftdescriptors_on_sample(input_sample):
+    sample = input_sample.copy()
+    results = runFftDescriptorOnFiles([specimen['filename']
+                                       for specimen in sample['specimens'][0:10]])
+    for result, specimen in zip(results, sample['specimens']):
+        specimen.update(result)
+    return sample
+
+
+@timer
+def preprocessing(input, output):
+    sample = get_sample(input)
+    sample = generate_images(sample)
+    generate_csv(sample, SAMPLE, ('name', 'subset',
+                                   'sex', 'age', 'side', 'basename'))
+    sample = _run_fftdescriptors_on_sample(sample)
+    #sample = _run_forAge_on_sample(sample)
+    generate_csv(sample, DESCRIPTORS, ('basename', 'name',
+                                       'subset', 'sex', 'age', 'side', 'BE', 'SAH', 'VC', 'fftd'))
+
+    # frame = pd.read_csv(os.path.join(sample['output'], DESCRIPTORS), sep=',', quotechar='"')
+    # _genAgeDescriptorPlots(sample['output'], frame)
+    # print(frame)
+
+
 def runFftDescriptorOnFiles(inputs, sampling_rate=192):
     sampling_resolution = getSamplingResolution(inputs, sampling_rate)
     common_patch_size = getCommonSamplePatchSize(inputs, sampling_resolution)
@@ -261,7 +207,7 @@ def renderReport():
 
 
 def analyzeDescriptors():
-    sample = list(get_sample(DATAFOLDER, OUTPUT))[0:100]
+    sample = list(get_sample(DATAFOLDER))[0:100]
     fftd = []
     ages = []
 
@@ -292,6 +238,7 @@ def analyzeDescriptors():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    preprocessing(DATAFOLDER, OUTPUT)
     #analyzeDescriptors()
     renderReport()
     # sample = list(get_sample(DATAFOLDER, OUTPUT))[0:2]

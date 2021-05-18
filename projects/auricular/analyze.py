@@ -18,7 +18,7 @@ import scipy.stats as stat
 
 import statsmodels.api as sm
 
-from common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
+from .common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
 
 def _predictionColName(indep, dep, type='loo'):
     return type + '_' + ("_".join(dep)) + "_by_" + ('_'.join(indep))
