@@ -1,18 +1,23 @@
+"""Common code for all shape explorer projects."""
 import logging
 import multiprocessing as mp
 import timeit
-from functools import wraps
+from functools import wraps, partial
 
-def timer(function):
+def timer(function=None, level=logging.DEBUG):
+    if function is None:
+        return partial(timer, level=level)
+
     @wraps(function)
-    def new_function(*args, **kwargs):
+    def wrapper(*args, **kwargs):
         start_time = timeit.default_timer()
         try:
             return function(*args, **kwargs)
         finally:
             elapsed = timeit.default_timer() - start_time
-            logging.info('Function "{name}" took {time} seconds to complete.'.format(name=function.__name__, time=elapsed))
-    return new_function
+            message = 'Function "%s" took %f seconds to complete.'
+            logging.log(level, message, function.__name__, elapsed)
+    return wrapper
 
 def runInParallel(inputs, fnc, serial=False):
     if serial:

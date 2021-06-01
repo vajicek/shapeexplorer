@@ -55,9 +55,9 @@ def boxPlot(x, filename, output):
     plotOut(fig1, filename, output)
 
 
-def histogramPlot(x, filename, output):
+def histogramPlot(x, filename, output, range=None):
     fig1 = plt.figure()
-    plt.hist(x, bins=20)
+    plt.hist(x, bins=20, range=range)
     plotOut(fig1, filename, output)
 
 
@@ -115,8 +115,7 @@ class Report:
 
         html = _generateHtml(template, data)
 
-        _generatePdf(html, self._getOutputFile('report_%s.pdf' %
-                                               now.strftime("%Y%m%d")), self.output_dir)
+        _generatePdf(html, self._getOutputFile('report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
 
     def generateList(self):
         template = _getTemplate(_getTemplateFile(common.LIST_TEMPLATE))
@@ -152,8 +151,7 @@ class Report:
 
         html = _generateHtml(template, data)
 
-        _generatePdf(html, self._getOutputFile('fft_report_%s.pdf' %
-                                               now.strftime("%Y%m%d")), self.output_dir)
+        _generatePdf(html, self._getOutputFile('fft_report_%s.pdf' % now.strftime("%Y%m%d")), self.output_dir)
 
     def generateCurvature(self, data_dict, pdf_css):
         template = _getTemplate(_getTemplateFile(

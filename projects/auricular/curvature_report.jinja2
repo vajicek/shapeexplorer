@@ -23,7 +23,12 @@
 <div>date: {{ today }}</div>
 
 <h2>Parameters</div>
-{{ params }}
+<dl>
+{% for key, value in my_dict.items() %}
+    <dt>{{ key|e }}</dt>
+    <dd>{{ value|e }}</dd>
+{% endfor %}
+</dl>
 
 <h2>Individual specimens analysis</h2>
 <div class="display-table">

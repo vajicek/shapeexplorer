@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from sklearn.linear_model import LinearRegression
+from sklearn.svm import LinearSVR
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import mean_squared_error
 
@@ -21,7 +22,7 @@ import statsmodels.api as sm
 from .common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
 
 def _predictionColName(indep, dep, type='loo'):
-    return type + '_' + ("_".join(dep)) + "_by_" + ('_'.join(indep))
+    return type + '_' + ("_".join([str(d) for d in dep])) + "_by_" + ('_'.join([str(i) for i in indep]))
 
 def _oneLeaveOutPredictions(dataframe, model, indep, dep):
     loo = LeaveOneOut()
@@ -61,7 +62,8 @@ def _modelPredictions(dataframe, model, indep, dep):
     dataframe.loc[:,prediction_column] = np.exp(prediction)
 
     #return _modelStatistics(X, y, indep)
-    return dict(pvalue=_getPvalue(fit, X, y.values.ravel()))
+    #return dict(pvalue=_getPvalue(fit, X, y.values.ravel()))
+    return dict(pvalue=0)
 
 def _saveData(dataframe, filename):
     return dataframe.to_csv(filename, sep=',', quotechar='"')
@@ -78,7 +80,7 @@ def _computeStatistics(actual, preditions):
     return dict(rmse=rmse, bias=bias, inaccuracy=inaccuracy)
 
 
-def _evaluateModel(dataframe, indep, model=LinearRegression(), dep=['logAge']):
+def _evaluateModel(dataframe, indep, model, dep=['logAge']):
     model_stats = _modelPredictions(dataframe, model, indep, dep)
     _oneLeaveOutPredictions(dataframe, model, indep=indep, dep=dep)
 
@@ -88,14 +90,14 @@ def _evaluateModel(dataframe, indep, model=LinearRegression(), dep=['logAge']):
 
     return model_stats
 
-def _evaluateAllModels(dataframe, indeps=None, subsets=['all']):
+def evaluateAllModels(dataframe, indeps=None, subsets=['all'], dep=['logAge'], model=LinearRegression()):
     if indeps is None:
         indeps = [['logSAH'], ['logBE'], ['VC'], ['logSAH', 'VC'], ['logBE', 'VC']]
     results = []
     for subset in subsets:
         for indep in indeps:
-            print('Evaluating: logAge ~ %s' % indep)
-            model_stats = _evaluateModel(dataframe, indep)
+            print('Evaluating: %s ~ %s' % (dep, indep))
+            model_stats = _evaluateModel(dataframe, indep, model, dep=dep)
             model_stats.update(dict(indep=indep, subset=subset))
             results.append(model_stats)
 
@@ -143,7 +145,7 @@ def analyze(folder):
 
     age_histogram = _genAgeHistogram(folder, dataframe)
     age_descriptor = _genAgeDescriptorPlots(folder, dataframe)
-    model_results = _evaluateAllModels(dataframe)
+    model_results = evaluateAllModels(dataframe)
     analysis_result = dict(
         model_results=model_results,
         age_descriptor=age_descriptor,

@@ -11,6 +11,7 @@ from base.common import timer
 
 _logger = logging.getLogger(__name__)
 
+
 @timer
 def indicesOriginsDirections(bounds, dims):
 
@@ -47,7 +48,9 @@ class Mapping:
         return (self.grid_dim[1] - int(index3[1]) - 1, int(index3[0]))
 
 
-def regularSampling(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
+def regularSampling(mesh, sampling_resolution, subrange):
+    subrange = subrange or [[0.0, 0.0, 0], [1.0, 1.0, 1]]
+
     dims = np.ceil((mesh.bounds[1] - mesh.bounds[0]) / sampling_resolution)[:2].astype(int)
 
     from_coord = mesh.bounds[0] + subrange[0] * (mesh.bounds[1] - mesh.bounds[0])
@@ -63,7 +66,9 @@ def regularSampling(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.
     return dims, indices, coords, sample_normals
 
 
-def getMapping(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
+def getMapping(mesh, sampling_resolution, subrange):
+    subrange = subrange or [[0.0, 0.0, 0], [1.0, 1.0, 1]]
+
     dims, _, _, _ = regularSampling(mesh, sampling_resolution, subrange)
     return Mapping(mesh.bounds[0], mesh.bounds[1], sampling_resolution, dims)
 
@@ -78,7 +83,9 @@ def applyIntersections(indices, coords, heightmap):
 
 @timer
 def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
-    dims, indices, coords = regularSampling(mesh, sampling_resolution, subrange)
+    subrange = subrange or [[0.0, 0.0, 0], [1.0, 1.0, 1]]
+
+    dims, indices, coords, _ = regularSampling(mesh, sampling_resolution, subrange)
     _logger.debug("dims=%s", dims)
 
     heightmap = np.ones(np.flip(dims)) * mesh.bounds[0][2]
