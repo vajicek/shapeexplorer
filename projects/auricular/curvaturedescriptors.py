@@ -22,9 +22,9 @@ import scipy.spatial
 from base.common import timer, runInParallel
 
 from .common import OUTPUT, DATAFOLDER_SURFACE_ONLY, DESCRIPTORS, ANALYSIS, getSample
-from .report import Report, removeOutliers, scatterPlot, boxPlot, histogramPlot
+from .report import Report, scatterPlot, boxPlot, histogramPlot
 from .preprocessing import renderToFile, getMeshData, generateCsv, img
-from .analyze import loadData, evaluateAllModels
+from .analyze import loadData, evaluateAllModels, removeOutliers
 
 from .projection import getMaskMapping, regularSampling, getMapping
 

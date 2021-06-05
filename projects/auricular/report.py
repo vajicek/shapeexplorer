@@ -13,13 +13,9 @@ import matplotlib.pyplot as plt
 from weasyprint import HTML, CSS
 from jinja2 import Template
 
-from .analyze import loadData
+from .analyze import loadData, removeOutliers
 
 from . import common
-
-
-def removeOutliers(data, m=1):
-    return data[abs(data - np.mean(data)) < m * np.std(data)]
 
 
 def linePlot(x, y, filename, output):
@@ -37,14 +33,14 @@ def plotOut(fig1, filename, output):
 
 
 def scatterPlot(x, y, filename, output, labels=None):
-    xs = np.array(x)
-    ys = np.array(y)
+    x_array = np.array(x)
+    y_array = np.array(y)
 
     fig1 = plt.figure()
-    plt.scatter(xs, ys)
+    plt.scatter(x_array, y_array)
     if labels:
         for i, label in enumerate(labels):
-            plt.annotate(label, (xs[i], ys[i]))
+            plt.annotate(label, (x_array[i], y_array[i]))
     plotOut(fig1, filename, output)
 
 
@@ -55,16 +51,15 @@ def boxPlot(x, filename, output):
     plotOut(fig1, filename, output)
 
 
-def histogramPlot(x, filename, output, range=None):
+def histogramPlot(x, filename, output, values_range=None):
     fig1 = plt.figure()
-    plt.hist(x, bins=20, range=range)
+    plt.hist(x, bins=20, range=values_range)
     plotOut(fig1, filename, output)
 
 
-def _generatePdf(html, filename, base_url, pdf_css):
+def _generatePdf(html, filename, base_url, pdf_css=''):
     html = HTML(string=html, base_url=base_url)
-    html.write_pdf(filename, stylesheets=[
-                   CSS(string=pdf_css)], optimize_images=True)
+    html.write_pdf(filename, stylesheets=[CSS(string=pdf_css)], optimize_images=True)
 
 
 def _generateHtml(template, data):
@@ -120,7 +115,7 @@ class Report:
     def generateList(self):
         template = _getTemplate(_getTemplateFile(common.LIST_TEMPLATE))
 
-        dataframe = loadData(self._getOutputFile(ESTIMATES))
+        dataframe = loadData(self._getOutputFile(common.ESTIMATES))
 
         images = []
         for i in dataframe.index:
@@ -169,8 +164,7 @@ class Report:
         html = _generateHtml(template, data)
 
         open(self._getOutputFile('curvature.html'), 'w').write(html)
-        _generatePdf(html, self._getOutputFile('curvature_%s.pdf' %
-                                               date_str), self.output_dir, pdf_css)
+        _generatePdf(html, self._getOutputFile('curvature_%s.pdf' % date_str), self.output_dir, pdf_css)
 
     def generateEdgeProfile(self, data_dict, pdf_css):
         template = _getTemplate(_getTemplateFile(
@@ -188,8 +182,7 @@ class Report:
         html = _generateHtml(template, data)
 
         open(self._getOutputFile('edgeprofile.html'), 'w').write(html)
-        _generatePdf(html, self._getOutputFile(
-            'edgeprofile_%s.pdf' % date_str), self.output_dir, pdf_css)
+        _generatePdf(html, self._getOutputFile('edgeprofile_%s.pdf' % date_str), self.output_dir, pdf_css)
 
 
 if __name__ == "__main__":

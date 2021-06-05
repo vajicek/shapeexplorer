@@ -8,7 +8,7 @@ disable=missing-function-docstring, missing-class-docstring
 
 [FORMAT]
 max-line-length=120
-good-names=i,j,k,x,y,z,n
+good-names=i,j,k,x,y,z,n,m
 
 
 [BASIC]

@@ -1,3 +1,5 @@
+""" Run trimesh viewer. """
+
 import trimesh
 import trimesh.viewer
 
@@ -24,7 +26,7 @@ def showSample(sample, callback=basicCallback, init_index=0):
     )
 
     @window.event
-    def on_key_press(symbol, modifiers):
+    def on_key_press(symbol, _):
         if symbol == pyglet.window.key.Q:
             window.close()
         if symbol == pyglet.window.key.N:
