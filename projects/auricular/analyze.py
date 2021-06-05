@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from sklearn.linear_model import LinearRegression
-from sklearn.svm import LinearSVR
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import mean_squared_error
 
@@ -21,8 +20,8 @@ import statsmodels.api as sm
 
 from .common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
 
-def _predictionColName(indep, dep, type='loo'):
-    return type + '_' + ("_".join([str(d) for d in dep])) + "_by_" + ('_'.join([str(i) for i in indep]))
+def _predictionColName(indep, dep, prefix='loo'):
+    return prefix + '_' + ("_".join([str(d) for d in dep])) + "_by_" + ('_'.join([str(i) for i in indep]))
 
 def _oneLeaveOutPredictions(dataframe, model, indep, dep):
     loo = LeaveOneOut()
@@ -31,32 +30,32 @@ def _oneLeaveOutPredictions(dataframe, model, indep, dep):
     for train, test in loo.split(dataframe):
         train_indices = dataframe.index[train]
         test_indices = dataframe.index[test]
-        X = dataframe.loc[train_indices][indep]
+        x = dataframe.loc[train_indices][indep]
         y = dataframe.loc[train_indices][dep]
 
-        fit = model.fit(X, y.values.ravel())
+        fit = model.fit(x, y.values.ravel())
         prediction = fit.predict(dataframe.loc[test_indices][indep])
 
         dataframe.at[test_indices, prediction_column] = np.exp(prediction)
 
-def _modelStatistics(X, y, indep):
-    X_with_constants = sm.add_constant(X)
-    model = sm.OLS(y, X_with_constants)
+def _modelStatistics(x, y, indep):
+    x_with_constants = sm.add_constant(x)
+    model = sm.OLS(y, x_with_constants)
     results = model.fit()
     return dict(pvalue=results.pvalues[indep].values[0])
 
-def _getPvalue(fit, X, y):
-    sse = np.sum((fit.predict(X) - y) ** 2, axis=0) / float(X.shape[0] - X.shape[1])
-    se = np.array([np.sqrt(np.diagonal(sse * np.linalg.inv(np.dot(X.T, X))))])
-    t = fit.coef_ / se
-    p = (2 * (1 - stat.t.cdf(np.abs(t), y.shape[0] - X.shape[1])))
-    return p[0]
+def _getPvalue(fit, x, y):
+    sum_sq_err = np.sum((fit.predict(x) - y) ** 2, axis=0) / float(x.shape[0] - x.shape[1])
+    sq_err = np.array([np.sqrt(np.diagonal(sum_sq_err * np.linalg.inv(np.dot(x.T, x))))])
+    t_value = fit.coef_ / sq_err
+    p_value = 2 * (1 - stat.t.cdf(np.abs(t_value), y.shape[0] - x.shape[1]))
+    return p_value[0]
 
 def _modelPredictions(dataframe, model, indep, dep):
     prediction_column = _predictionColName(indep, dep, 'train')
-    X = dataframe[indep]
+    x = dataframe[indep]
     y = dataframe[dep]
-    fit = model.fit(X, y.values.ravel())
+    fit = model.fit(x, y.values.ravel())
 
     prediction = fit.predict(dataframe[indep])
     dataframe.loc[:,prediction_column] = np.exp(prediction)
@@ -80,7 +79,9 @@ def _computeStatistics(actual, preditions):
     return dict(rmse=rmse, bias=bias, inaccuracy=inaccuracy)
 
 
-def _evaluateModel(dataframe, indep, model, dep=['logAge']):
+def _evaluateModel(dataframe, indep, model, dep=None):
+    dep = dep or ['logAge']
+
     model_stats = _modelPredictions(dataframe, model, indep, dep)
     _oneLeaveOutPredictions(dataframe, model, indep=indep, dep=dep)
 
@@ -90,9 +91,11 @@ def _evaluateModel(dataframe, indep, model, dep=['logAge']):
 
     return model_stats
 
-def evaluateAllModels(dataframe, indeps=None, subsets=['all'], dep=['logAge'], model=LinearRegression()):
-    if indeps is None:
-        indeps = [['logSAH'], ['logBE'], ['VC'], ['logSAH', 'VC'], ['logBE', 'VC']]
+def evaluateAllModels(dataframe, indeps=None, subsets=None, dep=None, model=LinearRegression()):
+    indeps = indeps or [['logSAH'], ['logBE'], ['VC'], ['logSAH', 'VC'], ['logBE', 'VC']]
+    subsets = subsets or ['all']
+    dep = dep or ['logAge']
+
     results = []
     for subset in subsets:
         for indep in indeps:

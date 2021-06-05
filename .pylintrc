@@ -8,3 +8,8 @@ disable=missing-function-docstring, missing-class-docstring
 
 [FORMAT]
 max-line-length=120
+good-names=i,j,k,x,y,z
+
+
+[BASIC]
+;variable-rgx=[a-z_][a-z0-9_]{1,30}$

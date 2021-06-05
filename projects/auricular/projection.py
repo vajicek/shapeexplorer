@@ -48,7 +48,7 @@ class Mapping:
         return (self.grid_dim[1] - int(index3[1]) - 1, int(index3[0]))
 
 
-def regularSampling(mesh, sampling_resolution, subrange):
+def regularSampling(mesh, sampling_resolution, subrange=None):
     subrange = subrange or [[0.0, 0.0, 0], [1.0, 1.0, 1]]
 
     dims = np.ceil((mesh.bounds[1] - mesh.bounds[0]) / sampling_resolution)[:2].astype(int)
@@ -66,7 +66,7 @@ def regularSampling(mesh, sampling_resolution, subrange):
     return dims, indices, coords, sample_normals
 
 
-def getMapping(mesh, sampling_resolution, subrange):
+def getMapping(mesh, sampling_resolution, subrange=None):
     subrange = subrange or [[0.0, 0.0, 0], [1.0, 1.0, 1]]
 
     dims, _, _, _ = regularSampling(mesh, sampling_resolution, subrange)
@@ -82,7 +82,7 @@ def applyIntersections(indices, coords, heightmap):
 
 
 @timer
-def computeHeightmap(mesh, sampling_resolution, subrange=[[0.0, 0.0, 0], [1.0, 1.0, 1]]):
+def computeHeightmap(mesh, sampling_resolution, subrange=None):
     subrange = subrange or [[0.0, 0.0, 0], [1.0, 1.0, 1]]
 
     dims, indices, coords, _ = regularSampling(mesh, sampling_resolution, subrange)

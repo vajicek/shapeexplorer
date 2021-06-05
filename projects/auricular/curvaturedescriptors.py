@@ -229,8 +229,10 @@ def computeCurvature(**kwargs):
 
 
 def positive(numbers):
-    return numbers[numbers > 0]
+    return numbers[numbers > 1e-9]
 
+def rejectOutliers(data, mean=2):
+    return data[abs(data - np.mean(data)) < m * np.std(data)]
 
 class HistogramDescriptors:
 
