@@ -8,19 +8,15 @@ import os
 import numpy as np
 
 import matplotlib.pyplot as plt
+from scipy.ndimage import distance_transform_edt, binary_fill_holes
+from rasterio.fill import fillnodata
+import trimesh
 
 from base.common import timer, runInParallel
-
-from .common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, get_sample
+from .common import OUTPUT, DATAFOLDER, SAMPLE, DESCRIPTORS, getSample
 from .report import Report
 from .projection import computeHeightmap
-from .preprocessing import img, generate_csv, generate_images
-
-from scipy.ndimage import distance_transform_edt, binary_fill_holes
-
-from rasterio.fill import fillnodata
-
-import trimesh
+from .preprocessing import img, generateCsv, generateImages
 
 PROCESSES_PER_CPU = 1
 
@@ -37,25 +33,23 @@ def fftImg(fft, filename):
 
 def get1dFft(heightmap_fft_abs):
     n = heightmap_fft_abs.shape[0]
-    h = int(n / 2)
+    half = int(n / 2)
     oned_fft = np.zeros(n)
     for x in range(heightmap_fft_abs.shape[1]):
         for y in range(heightmap_fft_abs.shape[0]):
-                d = int(np.sqrt((x - h)**2 + (y - h)**2))
-                if d < n:
-                    oned_fft[d] += heightmap_fft_abs[x, y]
+            dist = int(np.sqrt((x - half)**2 + (y - half)**2))
+            if dist < n:
+                oned_fft[dist] += heightmap_fft_abs[x, y]
     return oned_fft
 
 
-def fftDescriptorHeightmap(heightmap, f=0.5, dbg=False, i=0):
+def fftDescriptorHeightmap(heightmap, dbg=False, i=0):
     fft = np.fft.fft2(heightmap)
     fft[0, 0] = 0
     heightmap_fft = np.fft.fftshift(fft)
     heightmap_fft_abs = np.abs(heightmap_fft)
 
     n = heightmap.shape[0]
-
-    heightmap_fft_abs_normalized = heightmap_fft_abs
 
     oned_fft = get1dFft(heightmap_fft_abs)
 
@@ -65,7 +59,7 @@ def fftDescriptorHeightmap(heightmap, f=0.5, dbg=False, i=0):
     if dbg:
         fig1 = plt.figure()
         plt.ylim((0, 3500))
-        plt.plot(range(oned_fft.shape[0]-1), oned_fft[1:])
+        plt.plot(range(oned_fft.shape[0] - 1), oned_fft[1:])
         fig1.savefig(os.path.join(OUTPUT, '_1dfft_%d.png' % i))
         plt.close()
 
@@ -105,34 +99,32 @@ def findPatch(heightmap, dbg=False):
     return patch_size, coord
 
 
-def extractSubImage(heightmap, a, coord):
-    a2 = int(a / 2)
-    area = np.copy(heightmap[(coord[0] - a2):(coord[0] + a2),
-                             (coord[1] - a2):(coord[1] + a2)])
-    heightmap[(coord[0] - a2):(coord[0] + a2),
-              (coord[1] - a2):(coord[1] + a2)] += 1
+def extractSubImage(heightmap, base_length, coord):
+    half = int(base_length / 2)
+    area = np.copy(heightmap[(coord[0] - half):(coord[0] + half),
+                             (coord[1] - half):(coord[1] + half)])
+    heightmap[(coord[0] - half):(coord[0] + half),
+              (coord[1] - half):(coord[1] + half)] += 1
     return area
 
 
-def fftDescriptor(filename, no=0, dbg=False, sampling_resolution=1, common_patch_size=1):
-    _logger.debug("pid=%s, no=%s, input=%s", os.getpid(), no, filename)
+def fftDescriptor(filename, i=0, dbg=False, sampling_resolution=1, common_patch_size=1):
+    _logger.debug("pid=%s, i=%s, input=%s", os.getpid(), i, filename)
     heightmap = getHeightmap(filename, sampling_resolution)
 
-    patch_size, coord = findPatch(heightmap, dbg)
+    _, coord = findPatch(heightmap, dbg)
 
     heightmap_area = extractSubImage(heightmap, common_patch_size, coord)
 
-    img(heightmap, os.path.join(OUTPUT, 'fft',
-                                os.path.basename(filename) + '_area.png'))
+    img(heightmap, os.path.join(OUTPUT, 'fft', os.path.basename(filename) + '_area.png'))
 
-
-    fftd, low, high, oned_fft = fftDescriptorHeightmap(heightmap_area, dbg=dbg, i=no)
+    fftd, low, high, oned_fft = fftDescriptorHeightmap(heightmap_area, dbg=dbg, i=i)
     gc.collect()
     return {'fftd': fftd, 'low': low, 'high': high, '1d': oned_fft}
 
 
 @timer
-def runFftDescriptorOnFilesParallel(inputs, sampling_resolution=1, common_patch_size=1, proc_per_cpu=4):
+def runFftDescriptorOnFilesParallel(inputs, sampling_resolution=1, common_patch_size=1):
     input_params = [(input['filename'], i, i==0, sampling_resolution, common_patch_size)
         for input, i in zip(inputs, range(len(inputs)))]
     results = runInParallel(input_params, fftDescriptor)
@@ -144,7 +136,7 @@ def getBounds(filename):
 
 
 @timer
-def getSamplingResolution(inputs, sampling_rate, proc_per_cpu=8):
+def getSamplingResolution(inputs, sampling_rate):
     bounds = runInParallel([(s['filename'],) for s in inputs], getBounds)
 
     maxx = np.max([b[1][0] - b[0][0] for b in bounds])
@@ -161,7 +153,7 @@ def getPatch(filename, sampling_resolution):
 
 
 @timer
-def getCommonSamplePatchSize(inputs, sampling_resolution, proc_per_cpu=8):
+def getCommonSamplePatchSize(inputs, sampling_resolution):
     patches = runInParallel([(s['filename'], sampling_resolution) for s in inputs], getBounds)
     common_patch_size = np.min([patch[0] for patch in patches])
     _logger.debug("common_patch_size=%s", common_patch_size)
@@ -169,7 +161,7 @@ def getCommonSamplePatchSize(inputs, sampling_resolution, proc_per_cpu=8):
 
 
 @timer
-def _run_fftdescriptors_on_sample(input_sample):
+def _runFftDescriptorsOnSample(input_sample):
     sample = input_sample.copy()
     results = runFftDescriptorOnFiles([specimen['filename']
                                        for specimen in sample['specimens'][0:10]])
@@ -179,14 +171,14 @@ def _run_fftdescriptors_on_sample(input_sample):
 
 
 @timer
-def preprocessing(input, output):
-    sample = get_sample(input)
-    sample = generate_images(sample)
-    generate_csv(sample, SAMPLE, ('name', 'subset',
+def preprocessing(input_folder):
+    sample = getSample(input_folder)
+    sample = generateImages(sample)
+    generateCsv(sample, SAMPLE, ('name', 'subset',
                                    'sex', 'age', 'side', 'basename'))
-    sample = _run_fftdescriptors_on_sample(sample)
-    #sample = _run_forAge_on_sample(sample)
-    generate_csv(sample, DESCRIPTORS, ('basename', 'name',
+    sample = _runFftDescriptorsOnSample(sample)
+    #sample = runForAgeOnSample(sample)
+    generateCsv(sample, DESCRIPTORS, ('basename', 'name',
                                        'subset', 'sex', 'age', 'side', 'BE', 'SAH', 'VC', 'fftd'))
 
     # frame = pd.read_csv(os.path.join(sample['output'], DESCRIPTORS), sep=',', quotechar='"')
@@ -207,7 +199,7 @@ def renderReport():
 
 
 def analyzeDescriptors():
-    sample = list(get_sample(DATAFOLDER))[0:100]
+    sample = list(getSample(DATAFOLDER))[0:100]
     fftd = []
     ages = []
 
@@ -224,21 +216,21 @@ def analyzeDescriptors():
 
     fig1 = plt.figure()
     maxnamelen = max(len(fd[0]['filename']) for fd in files_descriptors)
-    for i, fd in enumerate(files_descriptors):
+    for i, descriptor in enumerate(files_descriptors):
         print(("%4d %" + str(maxnamelen + 4) + "s %5s %.4f") % (i,
-            fd[0]['filename'], fd[0]['age'], fd[1]['fftd']))
-        l = fd[1]['1d']
+            descriptor[0]['filename'], descriptor[0]['age'], descriptor[1]['fftd']))
+        ffd1 = descriptor[1]['1d']
         color = 'blue'
-        if int(fd[0]['age']) > 50:
+        if int(descriptor[0]['age']) > 50:
             color = 'red'
-        plt.plot(range(l.shape[0]-1), l[1:], color=color)
+        plt.plot(range(ffd1.shape[0]-1), ffd1[1:], color=color)
     fig1.savefig(os.path.join(OUTPUT, '_1dfft.png'))
     plt.close()
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    preprocessing(DATAFOLDER, OUTPUT)
+    preprocessing(DATAFOLDER)
     #analyzeDescriptors()
     renderReport()
     # sample = list(get_sample(DATAFOLDER, OUTPUT))[0:2]

@@ -22,7 +22,7 @@ EDGE_PROFILE_REPORT_TEMPLATE = "edge_profile_report.jinja2"
 FILENAME_PATTERN = re.compile(
     r'.*/(.*)(S|Cr|Th|Co1|Co2)_(aur)_(dex|sin)_(F|M)([0-9]*)')
 
-def _parse_name(filename):
+def _parseName(filename):
     match = FILENAME_PATTERN.match(filename)
     if not match:
         return None
@@ -36,7 +36,7 @@ def _parse_name(filename):
             'age': match.group(6)
             }
 
-def get_sample(input_folder):
+def getSample(input_folder):
     ply_files_glob = os.path.join(os.path.expanduser(input_folder), "*.ply")
     for abs_filename in glob.glob(ply_files_glob):
-        yield _parse_name(abs_filename)
+        yield _parseName(abs_filename)

@@ -21,9 +21,9 @@ import scipy.spatial
 
 from base.common import timer, runInParallel
 
-from .common import OUTPUT, DATAFOLDER_SURFACE_ONLY, DESCRIPTORS, ANALYSIS, get_sample
+from .common import OUTPUT, DATAFOLDER_SURFACE_ONLY, DESCRIPTORS, ANALYSIS, getSample
 from .report import Report, removeOutliers, scatterPlot, boxPlot, histogramPlot
-from .preprocessing import render_to_file, get_mesh_data, generate_csv, img
+from .preprocessing import renderToFile, getMeshData, generateCsv, img
 from .analyze import loadData, evaluateAllModels
 
 from .projection import getMaskMapping, regularSampling, getMapping
@@ -179,9 +179,9 @@ def fullCurvatureDescriptorValue(specimen, dist=0.5, output_filename=None):
         values = np.hstack((ariadne['localDNE'], np.array([0, 0.0008])))
         colors = trimesh.visual.interpolate(np.log(1e-6 + values), 'jet')[:-2]
 
-        mesh_data = get_mesh_data(specimen['filename'])
+        mesh_data = getMeshData(specimen['filename'])
         mesh_data[0]['vertex_colors'] = colors
-        render_to_file(output_filename, mesh_data)
+        renderToFile(output_filename, mesh_data)
 
     return ariadne
 
@@ -232,7 +232,7 @@ def positive(numbers):
     return numbers[numbers > 1e-9]
 
 def rejectOutliers(data, mean=2):
-    return data[abs(data - np.mean(data)) < m * np.std(data)]
+    return data[abs(data - np.mean(data)) < mean * np.std(data)]
 
 class HistogramDescriptors:
 
@@ -290,7 +290,7 @@ class CurvatureDescriptors:
         if not os.path.exists(self.params.output):
             os.makedirs(self.params.output, exist_ok=True)
         if not os.path.exists(filename):
-            sample = list(get_sample(self.params.input_data))
+            sample = list(getSample(self.params.input_data))
             sample = [l for l in sample if self.params.subset(l)]
             self.persistData(sample)
 
@@ -330,7 +330,7 @@ class CurvatureDescriptors:
             result['logAge'] = np.log(float(result['age']))
             result['subsets'] = ['all']
 
-        generate_csv(dict(output=self.params.output, specimens=results), DESCRIPTORS,
+        generateCsv(dict(output=self.params.output, specimens=results), DESCRIPTORS,
                      ('basename', 'name', 'subset', 'sex', 'age', 'side', 'logAge',
                       'sampled_dne', 'ariadne', 'clean_ariadne'))
         descriptors = loadData(os.path.join(self.params.output, DESCRIPTORS))
@@ -346,7 +346,7 @@ class CurvatureDescriptors:
         sample = self.getData()
         for specimen in sample:
             mesh_output_filename = os.path.join(self.params.output, specimen['basename'] + '_mesh.png')
-            render_to_file(mesh_output_filename, get_mesh_data(specimen['filename']))
+            renderToFile(mesh_output_filename, getMeshData(specimen['filename']))
 
     def showAnalysis(self):
         sample = self.getData()

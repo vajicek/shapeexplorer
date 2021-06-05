@@ -5,25 +5,19 @@
 import logging
 import os
 import gc
-import numpy as np
-import numpy.matlib
-import numpy.linalg
 import pickle
+from abc import ABC, abstractmethod
 
-import matplotlib.pyplot as plt
-
+import numpy as np
 import trimesh
 import trimesh.viewer
-
-import pyglet
 
 from base.common import timer, runInParallel
 from base.sampledata import get_point_cloud
 
-from common import OUTPUT, DATAFOLDER, get_sample
-from preprocessing import render_to_file, get_mesh_data
-from report import Report, linePlot
-from viewer import showSample
+from .common import OUTPUT, DATAFOLDER, getSample
+from .preprocessing import renderToFile, getMeshData
+from .report import Report, linePlot
 
 DESCRIPTOR_PICKLE = 'edgeDescriptor.pickle'
 
@@ -52,19 +46,19 @@ def getIntersections(mesh):
 
 
 def getProfile(points):
-    p1 = points[0]
-    p2 = points[-1]
+    first = points[0]
+    last = points[-1]
     distances = []
-    for p in points:
-        d = np.linalg.norm(np.cross(p2 - p1, p1 - p)) / np.linalg.norm(p2 - p1)
-        distances.append(d)
+    for point in points:
+        dist = np.linalg.norm(np.cross(last - first, first - point)) / np.linalg.norm(last - first)
+        distances.append(dist)
     return distances
 
 
 def showSamplePoints(mesh, points):
-    pc = trimesh.points.PointCloud(points)
-    sc = trimesh.scene.Scene([mesh, pc])
-    sc.show()
+    point_cloud = trimesh.points.PointCloud(points)
+    scene = trimesh.scene.Scene([mesh, point_cloud])
+    scene.show()
 
 
 @timer
@@ -78,9 +72,9 @@ def computeDescriptor(specimen, output):
 
     if 'mesh_image' not in specimen:
         mesh_image_filename = os.path.join(output, specimen['basename'] + '.png')
-        mesh_data = get_mesh_data(specimen['filename'])
+        mesh_data = getMeshData(specimen['filename'])
         mesh_data += get_point_cloud(points)
-        render_to_file(mesh_image_filename, mesh_data)
+        renderToFile(mesh_image_filename, mesh_data)
         specimen['mesh_image'] = mesh_image_filename
 
     if 'edge_profile' not in specimen:
@@ -94,34 +88,42 @@ def computeDescriptor(specimen, output):
     return specimen
 
 
-class Descriptors:
+class Descriptors(ABC):
+
+    def __init__(self, output, specimen_count, subset):
+        self.output = output
+        self.specimen_count = specimen_count
+        self.subset = subset
 
     def newAnalysis(self):
         filename = os.path.join(self.output, DESCRIPTOR_PICKLE)
         if not os.path.exists(self.output):
             os.makedirs(self.output, exist_ok=True)
         if not os.path.exists(filename):
-            sample = list(get_sample(DATAFOLDER))
+            sample = list(getSample(DATAFOLDER))
             sample = [l for l in sample if self.subset(l)]
             pickle.dump(sample, open(filename, 'wb'))
 
     def analyzeDescriptors(self):
-        sample = pickle.load(
-            open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'rb'))
+        sample = pickle.load(open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'rb'))
         sorted_subsample = sorted(
-            sample[0:self.specimen_count], key=lambda spec: int(spec['age']))
-        results = runInParallel([self.descriptorInput(specimen)
-                                 for specimen in sorted_subsample], computeDescriptor, serial=False)
-        pickle.dump(results, open(os.path.join(
-            self.output, DESCRIPTOR_PICKLE), 'wb'))
+            sample[0:self.specimen_count],
+            key=lambda spec: int(spec['age']))
+        results = runInParallel(
+            [self.descriptorInput(specimen) for specimen in sorted_subsample],
+            computeDescriptor,
+            serial=False)
+        pickle.dump(results, open(os.path.join(self.output, DESCRIPTOR_PICKLE), 'wb'))
+
+    @abstractmethod
+    def descriptorInput(self, specimen):
+        ...
 
 
 class EdgeDescriptors(Descriptors):
 
     def __init__(self, output, specimen_count=None, subset=lambda a: True):
-        self.output = output
-        self.subset = subset
-        self.specimen_count = specimen_count
+        super().__init__(output, specimen_count, subset)
 
     def descriptorInput(self, specimen):
         return (specimen, self.output)
@@ -165,9 +167,9 @@ def samplePointsCallback(scene):
         scene.delete_geometry("specimen")
         scene.add_geometry(mesh, "specimen")
 
-        pointCloud = trimesh.points.PointCloud(getIntersections(mesh))
+        point_cloud = trimesh.points.PointCloud(getIntersections(mesh))
         scene.delete_geometry("samplePoints")
-        scene.add_geometry(pointCloud, "samplePoints")
+        scene.add_geometry(point_cloud, "samplePoints")
 
         print(scene.current_index)
         print(scene.sample[scene.current_index])
@@ -178,7 +180,7 @@ if __name__ == "__main__":
 
     EdgeDescriptors(output=OUTPUT, specimen_count=50).run()
 
-    # sorted_subsample = sorted(get_sample(DATAFOLDER), key=lambda spec: int(spec['age']))
+    # sorted_subsample = sorted(getSample(DATAFOLDER), key=lambda spec: int(spec['age']))
     # print(sorted_subsample[0])
     # iii = [index for index, value in enumerate(sorted_subsample) if value['basename'] == 'LAU_47S_aur_sin_M41.ply']
     # showSample(sorted_subsample, samplePointsCallback, iii[0])
