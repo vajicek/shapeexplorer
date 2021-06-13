@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 """ Compute fourier descriptors on auricular shape. """
 
 import logging
@@ -226,12 +224,3 @@ def analyzeDescriptors():
         plt.plot(range(ffd1.shape[0]-1), ffd1[1:], color=color)
     fig1.savefig(os.path.join(OUTPUT, '_1dfft.png'))
     plt.close()
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    preprocessing(DATAFOLDER)
-    #analyzeDescriptors()
-    renderReport()
-    # sample = list(get_sample(DATAFOLDER, OUTPUT))[0:2]
-    # runFftDescriptorOnFiles(sample)

@@ -25,6 +25,7 @@ FILENAME_PATTERN = re.compile(
 def _parseName(filename):
     match = FILENAME_PATTERN.match(filename)
     if not match:
+        print("Does no match file pattern: %s" % filename)
         return None
     return {'basename': os.path.basename(filename),
             'filename': filename,

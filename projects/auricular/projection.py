@@ -4,8 +4,8 @@ import logging
 import numpy as np
 
 import trimesh
-
 from scipy.ndimage import binary_erosion
+from scipy.ndimage import distance_transform_edt, binary_fill_holes
 
 from base.common import timer
 
@@ -59,11 +59,11 @@ def regularSampling(mesh, sampling_resolution, subrange=None):
     indices, origins, directions = indicesOriginsDirections([from_coord, to_coord], dims)
 
     intersector = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
-    coords, _, face_index = intersector.intersects_location(origins, directions)
+    coords, ray_indices, face_index = intersector.intersects_location(origins, directions)
 
     sample_normals = mesh.face_normals[face_index]
 
-    return dims, indices, coords, sample_normals
+    return dims, np.array(indices)[ray_indices], coords, sample_normals
 
 
 def getMapping(mesh, sampling_resolution, subrange=None):
@@ -75,7 +75,7 @@ def getMapping(mesh, sampling_resolution, subrange=None):
 
 @timer
 def applyIntersections(indices, coords, heightmap):
-    for coord, index in zip(coords[0], coords[1]):
+    for index, coord in enumerate(coords):
         array_index = indices[index]
         array_index = (heightmap.shape[0] - array_index[1] - 1, array_index[0])
         heightmap[array_index] = max(coord[2], heightmap[array_index])
@@ -100,3 +100,7 @@ def getMaskMapping(mesh, sampling_resolution, erode_by=1):
     if erode_by > 0:
         mask = binary_erosion(mask, iterations=erode_by)
     return mask
+
+def getDistanceToEdge(mask):
+    filled = binary_fill_holes(mask)
+    return distance_transform_edt(filled)

@@ -1,8 +1,5 @@
-#!/usr/bin/python3
-
 """ Analyze auricular shape. """
 
-import logging
 import pickle
 import os
 
@@ -18,7 +15,7 @@ import scipy.stats as stat
 
 import statsmodels.api as sm
 
-from .common import OUTPUT, DESCRIPTORS, ESTIMATES, ANALYSIS
+from .common import DESCRIPTORS, ESTIMATES, ANALYSIS
 
 
 def _predictionColName(indep, dep, prefix='loo'):
@@ -173,8 +170,3 @@ def analyze(folder):
 
     _saveData(dataframe, os.path.join(folder, ESTIMATES))
     pickle.dump(analysis_result, open(os.path.join(folder, ANALYSIS), 'wb'))
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    analyze(OUTPUT)

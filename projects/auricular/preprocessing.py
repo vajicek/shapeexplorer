@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 """ Preprocess auricular shape. """
 
 import os

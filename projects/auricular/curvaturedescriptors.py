@@ -27,6 +27,7 @@ from .preprocessing import renderToFile, getMeshData, generateCsv, img
 from .analyze import loadData, evaluateAllModels, removeOutliers
 
 from .projection import getMaskMapping, regularSampling, getMapping
+from .projection import getDistanceToEdge, computeHeightmap
 
 PROCESSES_PER_CPU = 1
 
@@ -124,7 +125,7 @@ def ariaDneInternal(mesh, samples, sample_normals, sample_area,
                 curvature=curvatures, normals=normals, sample_area=sample_area)
 
 
-def getSamples(mesh, sample_count, sampling_rate, sampling_method, **_):
+def _getSamples(mesh, sample_count, sampling_rate, sampling_method, **_):
     if sampling_method == 'trimesh_even':
         samples, face_index = trimesh.sample.sample_surface_even(mesh, sample_count)
         sample_normals = mesh.face_normals[face_index]
@@ -151,7 +152,7 @@ def filterOutSamples(samples,
 
 @timer
 def sampledAriaDne(mesh, **kwargs):
-    samples, sample_normals = getSamples(mesh, **kwargs)
+    samples, sample_normals = _getSamples(mesh, **kwargs)
     samples, sample_normals = filterOutSamples(samples, sample_normals, mesh, **kwargs)
     return ariaDneInternal(mesh=mesh,
                            samples=samples,
@@ -171,19 +172,50 @@ def ariaDne(mesh, dist):
     return ariaDneInternal(mesh, mesh.vertices, mesh.vertex_normals, vert_area, dist)
 
 
-def fullCurvatureDescriptorValue(specimen, dist=0.5, output_filename=None):
-    mesh = trimesh.load_mesh(specimen['filename'], process=False)
-    ariadne = ariaDne(mesh, dist=dist)
+def getSamplesDist(mesh, samples, sampling_rate, **_):
+    mapping = getMapping(mesh, sampling_rate)
+    heightmap = computeHeightmap(mesh, sampling_rate)
+    distance_map = getDistanceToEdge(heightmap > np.min(heightmap))
+    def sampleToDistance(sample):
+        return distance_map[mapping.spaceToGrid(sample[:2])]
+    return np.array(list(map(sampleToDistance, samples)))
 
-    if output_filename:
-        values = np.hstack((ariadne['localDNE'], np.array([0, 0.0008])))
+
+def outputSampleMap(mesh, dist, output, specimen, sampling_rate, eval_pervertex_ariadne):
+    sample_map_output_filename = os.path.join(output, specimen['basename'] + '_sample_map.png')
+    mapping = getMapping(mesh, sampling_rate)
+    sample_map = np.zeros(np.flip(mapping.grid_dim)) + np.log(1e-6)
+    samples = specimen['dist'][dist]['samples']
+    curvatures = specimen['dist'][dist]['curvature']
+    for sample, curvature in zip(samples, curvatures):
+        grid_coord = mapping.spaceToGrid(sample[:2])
+        #sample_map[grid_coord] = sample_map[grid_coord] + 1
+        sample_map[grid_coord] = np.log(1e-6 + curvature)
+    img(sample_map, sample_map_output_filename, colorbar=True)
+
+    if eval_pervertex_ariadne:
+        output_filename = os.path.join(output, ariadneFilename(specimen, dist))
+        values = np.hstack((specimen['dist'][dist]['ariadne_local'], np.array([0, 0.0008])))
         colors = trimesh.visual.interpolate(np.log(1e-6 + values), 'jet')[:-2]
 
         mesh_data = getMeshData(specimen['filename'])
         mesh_data[0]['vertex_colors'] = colors
         renderToFile(output_filename, mesh_data)
 
-    return ariadne
+
+def computeDescriptors(mesh, dist, specimen, **kwargs):
+    sampled_dne = sampledAriaDne(mesh=mesh, dist=dist, **kwargs)
+    specimen['dist'][dist]['sample_dist'] = getSamplesDist(mesh, sampled_dne['samples'], **kwargs)
+    specimen['dist'][dist]['sampled_dne'] = sampled_dne['dne']
+    specimen['dist'][dist]['samples'] = sampled_dne['samples']
+    specimen['dist'][dist]['curvature'] = sampled_dne['curvature']
+
+    if kwargs['eval_pervertex_ariadne']:
+        ariadne = ariaDne(mesh, dist=dist)
+        specimen['dist'][dist]['ariadne'] = ariadne['dne']
+        specimen['dist'][dist]['clean_ariadne'] = ariadne['cleanDNE']
+        specimen['dist'][dist]['ariadne_max'] = np.max(ariadne['localDNE'])
+        specimen['dist'][dist]['ariadne_local'] = ariadne['localDNE']
 
 
 def computeCurvature(**kwargs):
@@ -191,7 +223,6 @@ def computeCurvature(**kwargs):
 
     specimen = kwargs['specimen']
     dist = kwargs['dist']
-    output = kwargs['output']
 
     if 'dist' not in specimen:
         specimen['dist'] = {}
@@ -199,31 +230,14 @@ def computeCurvature(**kwargs):
         specimen['dist'][dist] = {}
     else:
         return specimen
+
     print("processing %s (%d/%d)" % (specimen['basename'], kwargs['specimen_no'], kwargs['specimen_total']))
 
     mesh = trimesh.load_mesh(specimen['filename'])
 
-    sampled_dne = sampledAriaDne(mesh=mesh, **kwargs)
-    specimen['dist'][dist]['sampled_dne'] = sampled_dne['dne']
-    specimen['dist'][dist]['curvature'] = sampled_dne['curvature']
+    computeDescriptors(mesh, **kwargs)
 
-    # output sample map
-    sample_map_output_filename = os.path.join(output, specimen['basename'] + '_sample_map.png')
-    mapping = getMapping(mesh, kwargs['sampling_rate'])
-    sample_map = np.zeros(np.flip(mapping.grid_dim)) + np.log(1e-6)
-    for sample, curvature in zip(sampled_dne['samples'], sampled_dne['curvature']):
-        grid_coord = mapping.spaceToGrid(sample[:2])
-        #sample_map[grid_coord] = sample_map[grid_coord] + 1
-        sample_map[grid_coord] = np.log(1e-6 + curvature)
-    img(sample_map, sample_map_output_filename, colorbar=True)
-
-    if kwargs['eval_pervertex_ariadne']:
-        output_file = os.path.join(output, ariadneFilename(specimen, dist))
-        ariadne = fullCurvatureDescriptorValue(specimen, dist=dist, output_filename=output_file)
-        specimen['dist'][dist]['ariadne'] = ariadne['dne']
-        specimen['dist'][dist]['clean_ariadne'] = ariadne['cleanDNE']
-        specimen['dist'][dist]['ariadne_max'] = np.max(ariadne['localDNE'])
-        specimen['dist'][dist]['ariadne_local'] = ariadne['localDNE']
+    outputSampleMap(mesh, **kwargs)
 
     return specimen
 
@@ -231,8 +245,10 @@ def computeCurvature(**kwargs):
 def positive(numbers):
     return numbers[numbers > 1e-9]
 
+
 def rejectOutliers(data, mean=2):
     return data[abs(data - np.mean(data)) < mean * np.std(data)]
+
 
 class HistogramDescriptors:
 
@@ -240,28 +256,48 @@ class HistogramDescriptors:
         self.data = data
         self.dist = dist
 
-    def _curvature(self, specimen):
-        return positive(self.data[specimen]['dist'][self.dist]['curvature'])
+    def _desc(self, specimen, desc):
+        return self.data[specimen]['dist'][self.dist][desc]
 
-    def _minmax(self):
+    def _minmax(self, desc, fnc):
         specimens = len(self.data)
-        list_of_arrays = list(self._curvature(i) for i in range(specimens))
+        list_of_arrays = list(fnc(self._desc(i, desc)) for i in range(specimens))
         mins = [np.min(l) for l in list_of_arrays]
         maxs = [np.max(l) for l in list_of_arrays]
         return min(mins), max(maxs)
 
     def getHistogramData(self, i, bins, minmin, maxmax):
-        log_curvature = np.log(self._curvature(i))
-        hist, _ = np.histogram(log_curvature,
-            bins=bins,
-            range=(np.log(minmin), np.log(maxmax)))
+        values = np.log(positive(self._desc(i, 'curvature')))
+        hist, _ = np.histogram(values, bins=bins, range=(np.log(minmin), np.log(maxmax)))
         return hist / np.sum(hist)
 
     def getSampleHistogramData(self, bins):
-        minmin, maxmax = self._minmax()
+        minmin, maxmax = self._minmax('curvature', positive)
         data_array = np.ndarray((len(self.data), bins))
         for i in range(len(self.data)):
             data_array[i] = self.getHistogramData(i, bins, minmin, maxmax)
+        return data_array
+
+    def getHistogram2d(self, i, bins, range2d):
+        values1, values2 = self.getCurveDistFeatures(i)
+        hist, _, _ = np.histogram2d(values1, values2, bins=bins, range=range2d)
+        return hist / np.sum(hist)
+
+    def getCurveDistFeatures(self, i):
+        values1 = self._desc(i, 'curvature')
+        values2 = self._desc(i, 'sample_dist')
+        mask = values1 > 1e-9
+        values1 = np.log(values1[mask])
+        values2 = values2[mask]
+        return values1, values2
+
+    def getSampleHistogram2dData(self, bins):
+        minmax1 = self._minmax('curvature', positive)
+        minmax2 = self._minmax('sample_dist', lambda a: a)
+        range2d = np.array([[np.log(minmax1[0]), np.log(minmax1[1])], [minmax2[0], minmax2[1]]])
+        data_array = np.ndarray((len(self.data), bins, bins))
+        for i in range(len(self.data)):
+            data_array[0] = self.getHistogram2d(i, bins, range2d)
         return data_array
 
 
@@ -430,22 +466,3 @@ class CurvatureDescriptors:
                                       analysis_result=analysis_result,
                                       ariadne_by_age=ariadne_by_age,
                                       sampled_dne_by_age=sampled_dne_by_age), pdf_css)
-
-    def run(self):
-        self.newAnalysis()
-        self.computeDescriptors()
-        self.modelEvaluation()
-        self.renderMeshImages()
-        self.showAnalysis()
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-
-    CurvatureDescriptors(CurvatureDescriptorsParams(
-        upper_bound=None,
-        sampling_method='regular',
-        dist=2.0,
-        sampling_rate=0.5,
-        sample_count=5000,
-        output=OUTPUT)).run()
