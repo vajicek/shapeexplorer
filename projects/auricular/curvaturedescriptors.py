@@ -10,9 +10,17 @@ import pickle
 from typing import Callable
 from typing import NamedTuple
 
+from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+from sklearn.svm import LinearSVR
+
+import pandas as pd
+
 import numpy as np
 import numpy.matlib
 import numpy.linalg
+
+import matplotlib.pyplot as plt
 
 import trimesh
 import trimesh.viewer
@@ -181,7 +189,7 @@ def getSamplesDist(mesh, samples, sampling_rate, **_):
     return np.array(list(map(sampleToDistance, samples)))
 
 
-def outputSampleMap(mesh, dist, output, specimen, sampling_rate, eval_pervertex_ariadne):
+def outputSampleMap(mesh, dist, output, specimen, sampling_rate, eval_pervertex_ariadne, **_):
     sample_map_output_filename = os.path.join(output, specimen['basename'] + '_sample_map.png')
     mapping = getMapping(mesh, sampling_rate)
     sample_map = np.zeros(np.flip(mapping.grid_dim)) + np.log(1e-6)
@@ -278,26 +286,35 @@ class HistogramDescriptors:
             data_array[i] = self.getHistogramData(i, bins, minmin, maxmax)
         return data_array
 
-    def getHistogram2d(self, i, bins, range2d):
-        values1, values2 = self.getCurveDistFeatures(i)
-        hist, _, _ = np.histogram2d(values1, values2, bins=bins, range=range2d)
-        return hist / np.sum(hist)
-
-    def getCurveDistFeatures(self, i):
+    def getCurveDistFeatures(self, i, normalize_dist=False):
         values1 = self._desc(i, 'curvature')
         values2 = self._desc(i, 'sample_dist')
         mask = values1 > 1e-9
         values1 = np.log(values1[mask])
         values2 = values2[mask]
+        if normalize_dist:
+            values2 = values2 / np.max(values2)
         return values1, values2
 
-    def getSampleHistogram2dData(self, bins):
+    def getHistogram2d(self, i, bins, range2d, normalize_dist=False):
+        values1, values2 = self.getCurveDistFeatures(i, normalize_dist)
+        hist, _, _ = np.histogram2d(values1, values2, bins=bins, range=range2d)
+        return hist / np.sum(hist)
+
+    def getSampleHistogram2dData(self, bins, flatten=False, normalize_dist=False):
         minmax1 = self._minmax('curvature', positive)
-        minmax2 = self._minmax('sample_dist', lambda a: a)
-        range2d = np.array([[np.log(minmax1[0]), np.log(minmax1[1])], [minmax2[0], minmax2[1]]])
+        if normalize_dist:
+            range2d = np.array([[np.log(minmax1[0]), np.log(minmax1[1])], [0, 1]])
+        else:
+            minmax2 = self._minmax('sample_dist', lambda a: a)
+            range2d = np.array([[np.log(minmax1[0]), np.log(minmax1[1])], [minmax2[0], minmax2[1]]])
         data_array = np.ndarray((len(self.data), bins, bins))
         for i in range(len(self.data)):
-            data_array[0] = self.getHistogram2d(i, bins, range2d)
+            data_array[i] = self.getHistogram2d(i, bins, range2d, normalize_dist)
+
+        if flatten:
+            data_array.shape = (data_array.shape[0], bins * bins)
+
         return data_array
 
 
@@ -466,3 +483,60 @@ class CurvatureDescriptors:
                                       analysis_result=analysis_result,
                                       ariadne_by_age=ariadne_by_age,
                                       sampled_dne_by_age=sampled_dne_by_age), pdf_css)
+
+class ModelAnalysis:
+
+    def __init__(self, data, data_type='dist_curv'):
+        self.data_type = data_type
+        self.data = data
+        self.hist_descriptors = {
+            0.5: HistogramDescriptors(self.data, 0.5),
+            1.0: HistogramDescriptors(self.data, 1.0),
+            2.0: HistogramDescriptors(self.data, 2.0)
+        }
+
+    def modelForBins(self, bins, indeps=None, dist=2.0, model=LinearRegression(), normalize_dist=True):
+
+        if self.data_type == 'dist_curv':
+            dataframe = pd.DataFrame(self.hist_descriptors[dist].getSampleHistogram2dData(bins, True, normalize_dist))
+        elif self.data_type == 'curv':
+            dataframe = pd.DataFrame(self.hist_descriptors[dist].getSampleHistogramData(bins))
+        else:
+            print("Unknown data_type %s" % self.data_type)
+
+        dataframe['age'] = [float(data1['age']) for data1 in self.data]
+        dataframe['logAge'] = np.log(dataframe['age'])
+        indeps = indeps or [list(range(bins))]
+        results = evaluateAllModels(dataframe, indeps=indeps, dep=['logAge'], model=model)
+        return pd.DataFrame(results)
+
+    def plotRmsePerBins(self, bins_rmse_list):
+        bins, rmses = list(zip(*bins_rmse_list))
+        dataframe = pd.DataFrame({
+            'rmse': rmses,
+            'bins': bins})
+        dataframe.plot(y='rmse', x='bins')
+        _ = plt.xticks(dataframe['bins'])
+
+    def binsRmse(self, dist=1.0, model=LinearRegression()):
+        for bins in range(2, 20):
+            yield bins, self.modelForBins(bins, dist=dist, model=model)['rmse'][0]
+
+    def compareMethods(self, dist=1.0):
+        lsvr_bins_rmse_list = list(self.binsRmse(dist=dist, model=LinearSVR()))
+        svr_bins_rmse_list = list(self.binsRmse(dist=dist, model=SVR()))
+        lr_bins_rmse_list = list(self.binsRmse(dist=dist, model=LinearRegression()))
+
+        dataframe = pd.DataFrame({
+            'linear regression': list(zip(*lr_bins_rmse_list))[1],
+            'linear SVR': list(zip(*lsvr_bins_rmse_list))[1],
+            'SVR': list(zip(*svr_bins_rmse_list))[1],
+            'bins': list(zip(*svr_bins_rmse_list))[0]})
+        dataframe.plot.line(x='bins')
+        _ = plt.xticks(dataframe['bins'])
+
+    def twoParamPlot(self, dist=1.0, x_bin=0, y_bin=2, bins=3):
+        x = [a[x_bin] for a in self.hist_descriptors[dist].getSampleHistogramData(bins)]
+        y = [a[y_bin] for a in self.hist_descriptors[dist].getSampleHistogramData(bins)]
+        age = [float(data1['age']) for data1 in self.data]
+        pd.DataFrame({'x': x, 'y': y, 'age': age}).plot.scatter(x='x', y='y', c='age', colormap='viridis')

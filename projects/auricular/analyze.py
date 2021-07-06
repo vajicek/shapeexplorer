@@ -17,7 +17,6 @@ import statsmodels.api as sm
 
 from .common import DESCRIPTORS, ESTIMATES, ANALYSIS
 
-
 def _predictionColName(indep, dep, prefix='loo'):
     return prefix + '_' + ("_".join([str(d) for d in dep])) + "_by_" + ('_'.join([str(i) for i in indep]))
 
