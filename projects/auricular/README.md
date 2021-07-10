@@ -64,12 +64,13 @@ tensorboard --logdir=./mylogs --port=6006
 
 ## Dataset
 
-* 812 specimens, age (mean: 54.36, std: 18.96)
+* 812 specimens
+* Age (mean: 54.36, std: 18.96)
 
 ## Result
 
 * Expressed via RMSE
-* Linear regression on mean DNE
-* SVM regresion on mean DNE
-* SVM regresion on histogram of DNE
-* ANN on 2D histrogram
+* Linear regression on mean DNE, (RMSE: 17.29, one-leave-out CV)
+* SVM regresion on mean DNE, (RMSE: 16.14, one-leave-out CV)
+* SVM regresion on histogram of DNE (RMSE: ~16.2, one-leave-out CV)
+* ANN on 2D histrogram (RMSE: ~15.4, 10-fold CV)
