@@ -10,17 +10,9 @@ import pickle
 from typing import Callable
 from typing import NamedTuple
 
-from sklearn.linear_model import LinearRegression
-from sklearn.svm import SVR
-from sklearn.svm import LinearSVR
-
-import pandas as pd
-
 import numpy as np
 import numpy.matlib
 import numpy.linalg
-
-import matplotlib.pyplot as plt
 
 import trimesh
 import trimesh.viewer
@@ -483,60 +475,3 @@ class CurvatureDescriptors:
                                       analysis_result=analysis_result,
                                       ariadne_by_age=ariadne_by_age,
                                       sampled_dne_by_age=sampled_dne_by_age), pdf_css)
-
-class ModelAnalysis:
-
-    def __init__(self, data, data_type='dist_curv'):
-        self.data_type = data_type
-        self.data = data
-        self.hist_descriptors = {
-            0.5: HistogramDescriptors(self.data, 0.5),
-            1.0: HistogramDescriptors(self.data, 1.0),
-            2.0: HistogramDescriptors(self.data, 2.0)
-        }
-
-    def modelForBins(self, bins, indeps=None, dist=2.0, model=LinearRegression(), normalize_dist=True):
-
-        if self.data_type == 'dist_curv':
-            dataframe = pd.DataFrame(self.hist_descriptors[dist].getSampleHistogram2dData(bins, True, normalize_dist))
-        elif self.data_type == 'curv':
-            dataframe = pd.DataFrame(self.hist_descriptors[dist].getSampleHistogramData(bins))
-        else:
-            print("Unknown data_type %s" % self.data_type)
-
-        dataframe['age'] = [float(data1['age']) for data1 in self.data]
-        dataframe['logAge'] = np.log(dataframe['age'])
-        indeps = indeps or [list(range(bins))]
-        results = evaluateAllModels(dataframe, indeps=indeps, dep=['logAge'], model=model)
-        return pd.DataFrame(results)
-
-    def plotRmsePerBins(self, bins_rmse_list):
-        bins, rmses = list(zip(*bins_rmse_list))
-        dataframe = pd.DataFrame({
-            'rmse': rmses,
-            'bins': bins})
-        dataframe.plot(y='rmse', x='bins')
-        _ = plt.xticks(dataframe['bins'])
-
-    def binsRmse(self, dist=1.0, model=LinearRegression()):
-        for bins in range(2, 20):
-            yield bins, self.modelForBins(bins, dist=dist, model=model)['rmse'][0]
-
-    def compareMethods(self, dist=1.0):
-        lsvr_bins_rmse_list = list(self.binsRmse(dist=dist, model=LinearSVR()))
-        svr_bins_rmse_list = list(self.binsRmse(dist=dist, model=SVR()))
-        lr_bins_rmse_list = list(self.binsRmse(dist=dist, model=LinearRegression()))
-
-        dataframe = pd.DataFrame({
-            'linear regression': list(zip(*lr_bins_rmse_list))[1],
-            'linear SVR': list(zip(*lsvr_bins_rmse_list))[1],
-            'SVR': list(zip(*svr_bins_rmse_list))[1],
-            'bins': list(zip(*svr_bins_rmse_list))[0]})
-        dataframe.plot.line(x='bins')
-        _ = plt.xticks(dataframe['bins'])
-
-    def twoParamPlot(self, dist=1.0, x_bin=0, y_bin=2, bins=3):
-        x = [a[x_bin] for a in self.hist_descriptors[dist].getSampleHistogramData(bins)]
-        y = [a[y_bin] for a in self.hist_descriptors[dist].getSampleHistogramData(bins)]
-        age = [float(data1['age']) for data1 in self.data]
-        pd.DataFrame({'x': x, 'y': y, 'age': age}).plot.scatter(x='x', y='y', c='age', colormap='viridis')
