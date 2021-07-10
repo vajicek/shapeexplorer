@@ -30,7 +30,7 @@
 ## Extract descriptors
 
 * Implementation in curvaturedescriptors.py
-* Exection via jupyter notebook curvaturedescriptors.ipynb
+* Execution via jupyter notebook curvaturedescriptors.ipynb (change input_data to point to data directory)
 
 ## Jupyter notebook
 
@@ -52,7 +52,7 @@ jupyter-notebook
 
 ### Neural networks
 
-* Execute via curvaturedescriptors_age_prediction.ipynb
+* Execute via curvaturedescriptors_age_prediction.ipynb (change input_data)
 * Experiment on traning/testing/validation
 * Evaluate model with 10-fold cross-validation
 
