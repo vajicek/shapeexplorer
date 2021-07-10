@@ -64,7 +64,7 @@ tensorboard --logdir=./mylogs --port=6006
 
 ## Dataset
 
-* 812 specimens
+* 812 specimens, age (mean: 54.36, std: 18.96)
 
 ## Result
 
