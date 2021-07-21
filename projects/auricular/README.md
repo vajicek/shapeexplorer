@@ -70,7 +70,7 @@ tensorboard --logdir=./mylogs --port=6006
 ## Result
 
 * Expressed via RMSE
-* Linear regression on mean DNE, (RMSE: 17.29, one-leave-out CV)
-* SVM regresion on mean DNE, (RMSE: 16.14, one-leave-out CV)
-* SVM regresion on histogram of DNE (RMSE: ~16.2, one-leave-out CV)
+* Linear regression on mean DNE, (RMSE: 17.29, leave-one-out CV)
+* SVM regresion on mean DNE, (RMSE: 16.14, leave-one-out CV)
+* SVM regresion on histogram of DNE (RMSE: ~16.2, leave-one-out CV)
 * ANN on 2D histogram (RMSE: ~14.24, 10 x 10-fold CV)
