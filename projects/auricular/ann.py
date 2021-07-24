@@ -23,16 +23,17 @@ def buildModel(n_inputs=1, n_hidden_layers=2, n_neurons=1, learning_rate=0.0001)
 
 
 def evaluateModel(x, y):
-    model = buildModel(n_inputs=x.shape[1],
-                       n_hidden_layers=2,
-                       n_neurons=x.shape[1],
-                       learning_rate=0.0001)
-
     k_fold = KFold(n_splits=10, shuffle=True)
     fold_rmse = []
     predicted = np.array([])
     predicted_indices = np.array([])
     for train_index, test_index in k_fold.split(x):
+
+        model = buildModel(n_inputs=x.shape[1],
+                           n_hidden_layers=2,
+                           n_neurons=x.shape[1],
+                           learning_rate=0.0001)
+
         x_train = x[train_index]
         x_test = x[test_index]
         y_train = y[train_index]
@@ -43,9 +44,9 @@ def evaluateModel(x, y):
                   workers=8,
                   epochs=1000,
                   batch_size=10,
-                  verbose=0,
-                  callbacks=[keras.callbacks.EarlyStopping(patience=100)],
-                  validation_data=(x_test, y_test))
+                  verbose=0)
+                  # ,callbacks=[keras.callbacks.EarlyStopping(patience=100)],
+                  # validation_data=(x_test, y_test))
 
         predictions = model.predict(x_test)
         rmse = np.sqrt(mean_squared_error(np.exp(predictions), np.exp(y_test)))
