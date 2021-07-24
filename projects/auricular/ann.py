@@ -4,7 +4,7 @@ import numpy as np
 
 from tensorflow import keras
 from keras.layers import Dense, InputLayer
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from sklearn.metrics import mean_squared_error
 
 
@@ -39,14 +39,19 @@ def evaluateModel(x, y):
         y_train = y[train_index]
         y_test = y[test_index]
 
+        x_train, x_validate, y_train, y_validate = train_test_split(x_train,
+                                                                    y_train,
+                                                                    test_size=0.1,
+                                                                    random_state=None)
+
         model.fit(x_train, y_train,
                   use_multiprocessing=True,
                   workers=8,
                   epochs=1000,
                   batch_size=10,
-                  verbose=0)
-                  # ,callbacks=[keras.callbacks.EarlyStopping(patience=100)],
-                  # validation_data=(x_test, y_test))
+                  verbose=0,
+                  callbacks=[keras.callbacks.EarlyStopping(patience=100)],
+                  validation_data=(x_validate, y_validate))
 
         predictions = model.predict(x_test)
         rmse = np.sqrt(mean_squared_error(np.exp(predictions), np.exp(y_test)))
